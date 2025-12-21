@@ -50,19 +50,58 @@ def get_text_input(prompt: str, validate: Optional[callable] = None) -> str:
 
 
 def edit_in_editor(initial_content: str, prefix: str = "git-nearit") -> str:
+    HEADER = "# ---- EDIT BELOW THIS LINE ----"
+    FOOTER = "# ---- EDIT ABOVE THIS LINE ----"
+
+    full_content = f"{HEADER}\n{initial_content}\n{FOOTER}"
+
     with tempfile.NamedTemporaryFile(mode="w+", suffix=".txt", prefix=prefix, delete=False) as tmp:
-        tmp.write(initial_content)
+        tmp.write(full_content)
         tmp_path = Path(tmp.name)
 
     editor = os.getenv("EDITOR", "vi")
     subprocess.run([editor, str(tmp_path)], check=False)
 
     content = tmp_path.read_text()
-
     tmp_path.unlink()
 
-    lines = [
-        line for line in content.split("\n") if not line.strip().startswith("#") and line.strip()
-    ]
+    lines = content.split("\n")
 
-    return "\n".join(lines)
+    if lines and lines[0] == HEADER:
+        lines = lines[1:]
+
+    if lines and lines[-1] == FOOTER:
+        lines = lines[:-1]
+
+    result = "\n".join(lines).strip()
+
+    return result
+
+
+def get_pr_title() -> str:
+    import re
+
+    types = ["feat", "fix", "chore", "docs", "ci", "test"]
+    pr_type = select_from_menu("Select PR/MR type:", types)
+
+    desc = get_text_input(
+        "Enter short description (max 30 chars, lowercase, dash-separated): ",
+        validate=lambda text: (
+            bool(re.match(r"^[a-z0-9-]{1,30}$", text))
+            or "Invalid format. Use lowercase a-z, 0-9, and dashes only (max 30 chars)"
+        ),
+    )
+
+    return f"{pr_type}/{desc}"
+
+
+def get_pr_description(commit_subject: str, commit_body: str) -> str:
+    initial_content = f"{commit_subject}\n\n{commit_body}".strip()
+
+    description = edit_in_editor(initial_content)
+
+    if not description:
+        console.print("[ERROR] PR/MR creation aborted: empty description", style="bold red")
+        sys.exit(1)
+
+    return description

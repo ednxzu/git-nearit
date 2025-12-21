@@ -1,4 +1,3 @@
-import re
 import sys
 
 import typer
@@ -6,13 +5,9 @@ import typer
 from git_nearit.clients.git_client import GitClient
 from git_nearit.clients.gitea_client import GiteaClient
 from git_nearit.clients.gitlab_client import GitLabClient
-from git_nearit.utils import edit_in_editor, get_text_input, select_from_menu, setup_logging
+from git_nearit.utils import get_pr_description, get_pr_title, setup_logging
 
 app = typer.Typer()
-
-
-def validate_description(text: str) -> bool:
-    return bool(re.match(r"^[a-z0-9-]{1,30}$", text))
 
 
 def run_review(platform: str) -> None:
@@ -73,34 +68,11 @@ def run_review(platform: str) -> None:
 
         logger.info("No existing pull/merge request found, creating new one")
 
-        types = ["feat", "fix", "chore", "docs", "ci", "test"]
-        pr_type = select_from_menu("Select PR/MR type:", types)
-
-        desc = get_text_input(
-            "Enter short description (max 20 chars, lowercase, dash-separated): ",
-            validate=lambda text: (
-                validate_description(text)
-                or "Invalid format. Use lowercase a-z, 0-9, and dashes only (max 20 chars)"
-            ),
-        )
-
-        title = f"{pr_type}/{desc}"
+        title = get_pr_title()
         logger.info(f"Title: {title}")
 
         subject, body = git_client.get_last_commit_message()
-        initial_content = f"""# Edit the pull/merge request description below.
-# Lines starting with '#' will be ignored.
-
-{subject}
-
-{body}
-"""
-
-        description = edit_in_editor(initial_content)
-
-        if not description:
-            logger.error("PR/MR creation aborted: empty description")
-            sys.exit(1)
+        description = get_pr_description(subject, body)
 
         logger.info("Creating pull/merge request...")
         pr = vcs_client.create_pr(title, description, branch_name, main_branch)
