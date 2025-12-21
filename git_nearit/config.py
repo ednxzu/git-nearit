@@ -24,19 +24,20 @@ def get_git_config(key: str, default: str = "") -> str:
 
 
 def _parse_config_key(key: str) -> tuple[str, str]:
-    # Handle keys like "nearit.gitea.hostname" -> section="nearit.gitea", option="hostname"
-    # Or "nearit.gitea.git.ednz.fr" -> section='nearit "gitea"', option='git.ednz.fr'
-    parts = key.split(".")
-    if len(parts) < 2:
+    # Git config splits on the LAST dot:
+    # "nearit.gitea.git.ednz.fr.token" -> section="nearit.gitea.git.ednz.fr", option="token"
+    # Git stores multi-part sections as: nearit "gitea.git.ednz.fr"
+    parts = key.rsplit(".", 1)
+    if len(parts) != 2:
         raise ValueError(f"Invalid config key: {key}")
 
-    # For keys like nearit.gitea.hostname -> (nearit.gitea, hostname)
-    if len(parts) == 3:
-        section = f"{parts[0]}.{parts[1]}"
-        option = parts[2]
-    # For keys like nearit.gitea.git.ednz.fr -> (nearit "gitea", git.ednz.fr)
+    section_parts = parts[0].split(".", 1)
+    if len(section_parts) == 2:
+        # nearit.gitea.git.ednz.fr -> nearit "gitea.git.ednz.fr"
+        section = f'{section_parts[0]} "{section_parts[1]}"'
     else:
-        section = f'{parts[0]} "{parts[1]}"'
-        option = ".".join(parts[2:])
+        # Simple section without subsection
+        section = section_parts[0]
 
+    option = parts[1]
     return section, option
