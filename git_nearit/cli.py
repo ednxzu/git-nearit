@@ -13,7 +13,7 @@ app = typer.Typer()
 
 
 def validate_description(text: str) -> bool:
-    return bool(re.match(r"^[a-z0-9-]{1,20}$", text))
+    return bool(re.match(r"^[a-z0-9-]{1,30}$", text))
 
 
 def run_review(platform: str) -> None:
@@ -26,8 +26,10 @@ def run_review(platform: str) -> None:
 
         if git_client.has_uncommitted_changes():
             logger.error(
-                "You have uncommitted changes. Please commit or stash them before running review."
+                "You have uncommitted changes to tracked files. "
+                "Please commit or stash them before running review."
             )
+            logger.info("Note: Untracked files are fine and will be preserved.")
             sys.exit(1)
 
         main_branch = git_client.get_main_branch()

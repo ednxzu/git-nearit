@@ -86,4 +86,4 @@ class GitClient:
         return subject, body
 
     def has_uncommitted_changes(self) -> bool:
-        return self.repo.is_dirty(untracked_files=True)
+        return self.repo.is_dirty(untracked_files=False)
