@@ -58,15 +58,15 @@ def run_review(platform: str) -> None:
         else:  # lab
             vcs_client = GitLabClient(git_client.repo)
 
-        logger.info("Checking for existing pull/merge request...")
-        existing_pr = vcs_client.check_existing_pr(branch_name, main_branch)
+        logger.info("Checking for existing review...")
+        existing_review = vcs_client.check_existing_review(branch_name, main_branch)
 
-        if existing_pr:
-            logger.info(f"Pull/Merge request already exists: {existing_pr.title}")
-            logger.info(f"URL: {existing_pr.url}")
+        if existing_review:
+            logger.info(f"Review already exists: {existing_review.title}")
+            logger.info(f"URL: {existing_review.url}")
             return
 
-        logger.info("No existing pull/merge request found, creating new one")
+        logger.info("No existing review found, creating new one")
 
         title = get_pr_title()
         logger.info(f"Title: {title}")
@@ -74,10 +74,10 @@ def run_review(platform: str) -> None:
         subject, body = git_client.get_last_commit_message()
         description = get_pr_description(subject, body)
 
-        logger.info("Creating pull/merge request...")
-        pr = vcs_client.create_pr(title, description, branch_name, main_branch)
-        logger.info("Pull/Merge request created successfully!")
-        logger.info(f"URL: {pr.url}")
+        logger.info("Creating review...")
+        review = vcs_client.create_review(title, description, branch_name, main_branch)
+        logger.info("Review created successfully!")
+        logger.info(f"URL: {review.url}")
 
     except ValueError as e:
         logger.error(str(e))
