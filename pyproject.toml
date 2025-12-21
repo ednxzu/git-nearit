@@ -1,0 +1,28 @@
+[project]
+name = "git-nearit"
+version = "0.0.0"
+description = "Git review tool for Gitea and GitLab, mimicking gerrit's git-review workflow"
+readme = "README.md"
+requires-python = ">=3.11,<3.14"
+dependencies = [
+  "gitpython>=3.1.45",
+  "questionary>=2.1.1",
+  "requests>=2.32.5",
+  "rich>=14.2.0",
+  "typer>=0.20.1",
+]
+
+[project.scripts]
+git-tea-review = "git_nearit.cli:tea_review"
+git-lab-review = "git_nearit.cli:lab_review"
+
+[dependency-groups]
+dev = ["pytest>=9.0.2", "pytest-cov>=7.0.0", "ruff>=0.14.10"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
