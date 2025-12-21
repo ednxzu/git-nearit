@@ -10,12 +10,10 @@ import questionary
 from rich.console import Console
 from rich.logging import RichHandler
 
-from git_nearit.config import OutputStyle
-
 console = Console()
 
 
-def setup_logging(style: OutputStyle = OutputStyle.PLAIN) -> logging.Logger:
+def setup_logging() -> logging.Logger:
     logger = logging.getLogger("git-nearit")
     logger.setLevel(logging.INFO)
 
@@ -25,28 +23,11 @@ def setup_logging(style: OutputStyle = OutputStyle.PLAIN) -> logging.Logger:
         console=console,
         show_time=False,
         show_path=False,
+        show_level=True,
         markup=True,
         rich_tracebacks=True,
+        omit_repeated_times=False,
     )
-
-    if style == OutputStyle.EMOJI:
-
-        class EmojiFormatter(logging.Formatter):
-            EMOJI_MAP = {
-                "INFO": "ℹ️",
-                "WARNING": "⚠️",
-                "ERROR": "❌",
-                "CRITICAL": "❌",
-                "DEBUG": "🔍",
-            }
-
-            def format(self, record: logging.LogRecord) -> str:
-                emoji = self.EMOJI_MAP.get(record.levelname, "")
-                return f"{emoji}  {record.getMessage()}"
-
-        handler.setFormatter(EmojiFormatter())
-    else:
-        handler.setFormatter(logging.Formatter("[%(levelname)s] %(message)s"))
 
     logger.addHandler(handler)
     return logger

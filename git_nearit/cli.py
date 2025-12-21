@@ -6,7 +6,6 @@ import typer
 from git_nearit.clients.git_client import GitClient
 from git_nearit.clients.gitea_client import GiteaClient
 from git_nearit.clients.gitlab_client import GitLabClient
-from git_nearit.config import get_output_style
 from git_nearit.utils import edit_in_editor, get_text_input, select_from_menu, setup_logging
 
 app = typer.Typer()
@@ -17,8 +16,7 @@ def validate_description(text: str) -> bool:
 
 
 def run_review(platform: str) -> None:
-    style = get_output_style(platform)
-    logger = setup_logging(style)
+    logger = setup_logging()
 
     try:
         git_client = GitClient()
