@@ -1,18 +1,10 @@
 import sys
-from typing import Annotated, Optional
-
-import typer
+from typing import Optional
 
 from git_nearit.clients.git_client import GitClient
 from git_nearit.clients.gitea_client import GiteaClient
 from git_nearit.clients.gitlab_client import GitLabClient
-from git_nearit.utils import get_pr_description, get_pr_title, setup_logging
-
-
-def validate_mutually_exclusive_args(target_branch: Optional[str], download: Optional[int]) -> None:
-    if download is not None and target_branch is not None:
-        typer.echo("Error: Cannot specify both TARGET_BRANCH and --download", err=True)
-        raise typer.Exit(1)
+from git_nearit.utils import display_reviews_table, get_pr_description, get_pr_title, setup_logging
 
 
 def run_review(platform: str, target_branch: Optional[str] = None) -> None:
@@ -105,7 +97,6 @@ def run_review(platform: str, target_branch: Optional[str] = None) -> None:
 
 
 def download_review(platform: str, pr_id: int) -> None:
-    """Download and checkout a pull request branch."""
     logger = setup_logging()
 
     try:
@@ -149,57 +140,30 @@ def download_review(platform: str, pr_id: int) -> None:
         sys.exit(1)
 
 
-def tea_review() -> None:
-    """Submit or download a review for Gitea."""
+def list_reviews(platform: str, base_branch: Optional[str] = None) -> None:
+    logger = setup_logging()
 
-    def main(
-        target_branch: Annotated[
-            Optional[str],
-            typer.Argument(help="Target branch for the pull request (defaults to main branch)"),
-        ] = None,
-        download: Annotated[
-            Optional[int],
-            typer.Option(
-                "-d",
-                "--download",
-                help="Download and checkout a pull request by ID",
-                metavar="PR_ID",
-            ),
-        ] = None,
-    ) -> None:
-        validate_mutually_exclusive_args(target_branch, download)
+    try:
+        git_client = GitClient()
+        logger.info("Initialized git client")
 
-        if download is not None:
-            download_review("gitea", download)
+        if base_branch is None or base_branch == "":
+            base_branch = git_client.get_main_branch()
+            logger.info(f"Listing reviews for default branch: {base_branch}")
         else:
-            run_review("gitea", target_branch)
+            logger.info(f"Listing reviews for branch: {base_branch}")
 
-    typer.run(main)
+        if platform == "gitea":
+            vcs_client = GiteaClient(git_client.repo)
+        else:  # lab
+            vcs_client = GitLabClient(git_client.repo)
 
+        reviews = vcs_client.list_reviews(base_branch)
+        display_reviews_table(reviews, base_branch)
 
-def lab_review() -> None:
-    """Submit or download a review for GitLab."""
-
-    def main(
-        target_branch: Annotated[
-            Optional[str],
-            typer.Argument(help="Target branch for the merge request (defaults to main branch)"),
-        ] = None,
-        download: Annotated[
-            Optional[int],
-            typer.Option(
-                "-d",
-                "--download",
-                help="Download and checkout a merge request by ID",
-                metavar="MR_ID",
-            ),
-        ] = None,
-    ) -> None:
-        validate_mutually_exclusive_args(target_branch, download)
-
-        if download is not None:
-            download_review("gitlab", download)
-        else:
-            run_review("gitlab", target_branch)
-
-    typer.run(main)
+    except ValueError as e:
+        logger.error(str(e))
+        sys.exit(1)
+    except Exception as e:
+        logger.exception(f"Unexpected error: {e}")
+        sys.exit(1)

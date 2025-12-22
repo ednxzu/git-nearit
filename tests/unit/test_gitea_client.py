@@ -227,3 +227,127 @@ class TestGiteaClientAPI(GitRepoTestCase):
             client.get_pull_request(999)
 
         self.assertIn("HTTP 404", str(context.exception))
+
+    @patch("git_nearit.clients.gitea_client.requests.request")
+    def test_list_reviews(self, mock_request):
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.content = True
+        mock_response.json.return_value = [
+            {
+                "number": 1,
+                "title": "feat/test-feature",
+                "html_url": "https://example.com/test/repo/pulls/1",
+                "state": "open",
+                "draft": False,
+                "user": {"login": "testuser"},
+                "created_at": "2025-12-20T10:00:00Z",
+                "updated_at": "2025-12-22T10:00:00Z",
+                "head": {"ref": "feat/test-branch"},
+                "base": {"ref": "main"},
+            },
+            {
+                "number": 2,
+                "title": "fix/bug-fix",
+                "html_url": "https://example.com/test/repo/pulls/2",
+                "state": "open",
+                "draft": True,
+                "user": {"login": "developer"},
+                "created_at": "2025-12-21T10:00:00Z",
+                "updated_at": "2025-12-22T12:00:00Z",
+                "head": {"ref": "fix/bug-branch"},
+                "base": {"ref": "main"},
+            },
+        ]
+        mock_request.return_value = mock_response
+
+        client = GiteaClient(Repo(self.repo_path), token="test-token")
+        reviews = client.list_reviews("main")
+
+        self.assertEqual(len(reviews), 2)
+        self.assertEqual(reviews[0]["number"], 1)
+        self.assertEqual(reviews[0]["title"], "feat/test-feature")
+        self.assertEqual(reviews[1]["number"], 2)
+        self.assertEqual(reviews[1]["draft"], True)
+
+    @patch("git_nearit.clients.gitea_client.requests.request")
+    def test_list_reviews_empty(self, mock_request):
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.content = True
+        mock_response.json.return_value = []
+        mock_request.return_value = mock_response
+
+        client = GiteaClient(Repo(self.repo_path), token="test-token")
+        reviews = client.list_reviews("develop")
+
+        self.assertEqual(len(reviews), 0)
+
+    @patch("git_nearit.clients.gitea_client.requests.request")
+    def test_list_reviews_with_state(self, mock_request):
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.content = True
+        mock_response.json.return_value = [
+            {
+                "number": 3,
+                "title": "merged-pr",
+                "state": "closed",
+                "user": {"login": "testuser"},
+                "base": {"ref": "main"},
+            }
+        ]
+        mock_request.return_value = mock_response
+
+        client = GiteaClient(Repo(self.repo_path), token="test-token")
+        reviews = client.list_reviews("main", state="closed")
+
+        self.assertEqual(len(reviews), 1)
+        self.assertEqual(reviews[0]["state"], "closed")
+
+    @patch("git_nearit.clients.gitea_client.requests.request")
+    def test_list_reviews_filters_by_base_branch(self, mock_request):
+        """Test that list_reviews filters client-side by base branch."""
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.content = True
+        # API returns PRs for different base branches
+        mock_response.json.return_value = [
+            {
+                "number": 1,
+                "title": "PR targeting main",
+                "state": "open",
+                "user": {"login": "testuser"},
+                "base": {"ref": "main"},
+                "head": {"ref": "feature-1"},
+            },
+            {
+                "number": 2,
+                "title": "PR targeting develop",
+                "state": "open",
+                "user": {"login": "testuser"},
+                "base": {"ref": "develop"},
+                "head": {"ref": "feature-2"},
+            },
+            {
+                "number": 3,
+                "title": "Another PR targeting main",
+                "state": "open",
+                "user": {"login": "testuser"},
+                "base": {"ref": "main"},
+                "head": {"ref": "feature-3"},
+            },
+        ]
+        mock_request.return_value = mock_response
+
+        client = GiteaClient(Repo(self.repo_path), token="test-token")
+
+        reviews = client.list_reviews("develop")
+        self.assertEqual(len(reviews), 1)
+        self.assertEqual(reviews[0]["number"], 2)
+        self.assertEqual(reviews[0]["title"], "PR targeting develop")
+
+        reviews = client.list_reviews("main")
+        self.assertEqual(len(reviews), 2)
+        self.assertEqual(reviews[0]["number"], 1)
+        self.assertEqual(reviews[1]["number"], 3)

@@ -3,12 +3,14 @@ import os
 import subprocess
 import sys
 import tempfile
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable, Optional
 
 import questionary
 from rich.console import Console
 from rich.logging import RichHandler
+from rich.table import Table
 
 console = Console()
 
@@ -111,3 +113,74 @@ def get_pr_description(commit_subject: str, commit_body: str) -> str:
         sys.exit(1)
 
     return description
+
+
+def format_relative_time(iso_timestamp: str) -> str:
+    try:
+        dt = datetime.fromisoformat(iso_timestamp.replace("Z", "+00:00"))
+        now = datetime.now(timezone.utc)
+        diff = now - dt
+
+        if diff.days > 365:
+            years = diff.days // 365
+            return f"{years}y ago"
+        elif diff.days > 30:
+            months = diff.days // 30
+            return f"{months}mo ago"
+        elif diff.days > 0:
+            return f"{diff.days}d ago"
+        elif diff.seconds > 3600:
+            hours = diff.seconds // 3600
+            return f"{hours}h ago"
+        elif diff.seconds > 60:
+            minutes = diff.seconds // 60
+            return f"{minutes}m ago"
+        else:
+            return "just now"
+    except Exception:
+        return iso_timestamp
+
+
+def display_reviews_table(reviews: list[dict], base_branch: str) -> None:
+    if not reviews:
+        console.print(f"[yellow]No open reviews found for branch '{base_branch}'[/yellow]")
+        return
+
+    table = Table(
+        title=f"Reviews for '{base_branch}'", show_header=True, header_style="bold magenta"
+    )
+    table.add_column("PR #", style="cyan", justify="right", width=6)
+    table.add_column("Title", style="white", width=50)
+    table.add_column("Author", style="green", width=15)
+    table.add_column("State", style="yellow", width=8)
+    table.add_column("Draft", justify="center", width=5)
+    table.add_column("Created", style="blue", width=10)
+    table.add_column("Updated", style="blue", width=10)
+
+    for review in reviews:
+        number = str(review.get("number", "?"))
+        title = review.get("title", "")
+        # Truncate title if too long
+        if len(title) > 47:
+            title = title[:44] + "..."
+
+        author = review.get("user", {}).get("login", "unknown")
+        state = review.get("state", "unknown")
+
+        if state == "open":
+            state_str = "[green]open[/green]"
+        elif state == "closed":
+            state_str = "[red]closed[/red]"
+        elif state == "merged":
+            state_str = "[blue]merged[/blue]"
+        else:
+            state_str = state
+
+        draft = "✓" if review.get("draft", False) else ""
+
+        created_at = format_relative_time(review.get("created_at", ""))
+        updated_at = format_relative_time(review.get("updated_at", ""))
+
+        table.add_row(number, title, author, state_str, draft, created_at, updated_at)
+
+    console.print(table)

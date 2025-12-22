@@ -81,3 +81,7 @@ class BaseVCSClient(ABC):
     @abstractmethod
     def get_repository_info(self) -> dict[str, str]:
         pass
+
+    @abstractmethod
+    def list_reviews(self, base_branch: str, state: str = "open") -> list[dict]:
+        pass

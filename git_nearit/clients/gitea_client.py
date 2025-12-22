@@ -139,3 +139,19 @@ class GiteaClient(BaseVCSClient):
             "owner": self.owner,
             "repo": self.repo_name,
         }
+
+    def list_reviews(self, base_branch: str, state: str = "open") -> list[dict]:
+        route = f"/repos/{self.owner}/{self.repo_name}/pulls"
+
+        try:
+            pulls = self._make_request("GET", route, params={"state": state})
+            if not pulls:
+                return []
+
+            # Filter client-side by base branch since API doesn't support it
+            filtered_pulls = [pr for pr in pulls if pr.get("base", {}).get("ref") == base_branch]
+            return filtered_pulls
+        except GiteaAPIError:
+            raise
+        except Exception as e:
+            raise GiteaAPIError(f"Failed to list reviews for branch {base_branch}: {e}") from e

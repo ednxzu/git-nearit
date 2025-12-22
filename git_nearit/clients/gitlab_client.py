@@ -36,3 +36,7 @@ class GitLabClient(BaseVCSClient):
             "owner": "owner",
             "repo": "repo",
         }
+
+    def list_reviews(self, base_branch: str, state: str = "open") -> list[dict]:
+        # Stub implementation - needs to be implemented
+        return []
