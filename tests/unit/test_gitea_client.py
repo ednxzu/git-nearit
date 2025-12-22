@@ -90,7 +90,8 @@ class TestGiteaClientAPI(GitRepoTestCase):
         client = GiteaClient(Repo(self.repo_path), token="test-token")
         review = client.check_existing_review("feat/test-branch", "main")
 
-        self.assertIsNotNone(review)
+        # Type narrowing for type checker, rather than self.assertIsNotNone(review)
+        assert review is not None
         self.assertEqual(review.title, "feat/test-feature")
         self.assertEqual(review.url, "https://example.com/test/repo/pulls/1")
         self.assertEqual(review.number, 1)
@@ -123,7 +124,8 @@ class TestGiteaClientAPI(GitRepoTestCase):
         client = GiteaClient(Repo(self.repo_path), token="test-token")
         review = client.create_review("feat/new-feature", "Description here", "feat/branch", "main")
 
-        self.assertIsInstance(review, Review)
+        # Type narrowing for type checker, rather than self.assertIsInstance(review, Review)
+        assert isinstance(review, Review)
         self.assertEqual(review.title, "feat/new-feature")
         self.assertEqual(review.url, "https://example.com/test/repo/pulls/2")
         self.assertEqual(review.number, 2)
