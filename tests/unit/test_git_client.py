@@ -1,44 +1,10 @@
-import unittest
-from pathlib import Path
-from tempfile import TemporaryDirectory
-
 from git import Repo
 
 from git_nearit.clients.git_client import GitClient
+from tests.base import GitRepoTestCase
 
 
-class TestGitClientInit(unittest.TestCase):
-    def setUp(self) -> None:
-        """Set up test fixtures."""
-        self.temp_dir = TemporaryDirectory()
-        self.temp_path = Path(self.temp_dir.name)
-        self.repo_path = self.temp_path / "test_repo"
-        self.repo_path.mkdir()
-
-        repo = Repo.init(self.repo_path)
-
-        repo.config_writer().set_value("user", "name", "Test User").release()
-        repo.config_writer().set_value("user", "email", "test@example.com").release()
-
-        test_file = self.repo_path / "README.md"
-        test_file.write_text("# Test Repository\n")
-        repo.index.add(["README.md"])
-        repo.index.commit("Initial commit")
-
-        try:
-            repo.git.branch("-M", "main")
-        except Exception:
-            pass
-
-        try:
-            repo.create_remote("origin", "https://example.com/test/repo.git")
-        except Exception:
-            pass
-
-    def tearDown(self) -> None:
-        """Clean up test fixtures."""
-        self.temp_dir.cleanup()
-
+class TestGitClientInit(GitRepoTestCase):
     def test_init_with_valid_repo(self) -> None:
         """Test GitClient initialization with valid repository."""
         client = GitClient(self.repo_path)
@@ -56,39 +22,10 @@ class TestGitClientInit(unittest.TestCase):
         self.assertIn("Not a git repository", str(context.exception))
 
 
-class TestGitClientBranches(unittest.TestCase):
+class TestGitClientBranches(GitRepoTestCase):
     def setUp(self) -> None:
-        """Set up test fixtures."""
-        self.temp_dir = TemporaryDirectory()
-        self.temp_path = Path(self.temp_dir.name)
-        self.repo_path = self.temp_path / "test_repo"
-        self.repo_path.mkdir()
-
-        repo = Repo.init(self.repo_path)
-
-        repo.config_writer().set_value("user", "name", "Test User").release()
-        repo.config_writer().set_value("user", "email", "test@example.com").release()
-
-        test_file = self.repo_path / "README.md"
-        test_file.write_text("# Test Repository\n")
-        repo.index.add(["README.md"])
-        repo.index.commit("Initial commit")
-
-        try:
-            repo.git.branch("-M", "main")
-        except Exception:
-            pass
-
-        try:
-            repo.create_remote("origin", "https://example.com/test/repo.git")
-        except Exception:
-            pass
-
+        super().setUp()
         self.client = GitClient(self.repo_path)
-
-    def tearDown(self) -> None:
-        """Clean up test fixtures."""
-        self.temp_dir.cleanup()
 
     def test_get_main_branch(self) -> None:
         """Test getting main branch name."""
@@ -114,34 +51,10 @@ class TestGitClientBranches(unittest.TestCase):
         self.assertEqual(self.client.get_current_branch(), branch_name)
 
 
-class TestGitClientStash(unittest.TestCase):
+class TestGitClientStash(GitRepoTestCase):
     def setUp(self) -> None:
-        """Set up test fixtures."""
-        self.temp_dir = TemporaryDirectory()
-        self.temp_path = Path(self.temp_dir.name)
-        self.repo_path = self.temp_path / "test_repo"
-        self.repo_path.mkdir()
-
-        repo = Repo.init(self.repo_path)
-
-        repo.config_writer().set_value("user", "name", "Test User").release()
-        repo.config_writer().set_value("user", "email", "test@example.com").release()
-
-        test_file = self.repo_path / "README.md"
-        test_file.write_text("# Test Repository\n")
-        repo.index.add(["README.md"])
-        repo.index.commit("Initial commit")
-
-        try:
-            repo.git.branch("-M", "main")
-        except Exception:
-            pass
-
+        super().setUp()
         self.client = GitClient(self.repo_path)
-
-    def tearDown(self) -> None:
-        """Clean up test fixtures."""
-        self.temp_dir.cleanup()
 
     def test_stash_and_pop(self) -> None:
         """Test stashing and popping changes to tracked files."""
@@ -159,29 +72,10 @@ class TestGitClientStash(unittest.TestCase):
         self.assertFalse(self.client.stash_changes())
 
 
-class TestGitClientChanges(unittest.TestCase):
+class TestGitClientChanges(GitRepoTestCase):
     def setUp(self) -> None:
-        """Set up test fixtures."""
-        self.temp_dir = TemporaryDirectory()
-        self.temp_path = Path(self.temp_dir.name)
-        self.repo_path = self.temp_path / "test_repo"
-        self.repo_path.mkdir()
-
-        repo = Repo.init(self.repo_path)
-
-        repo.config_writer().set_value("user", "name", "Test User").release()
-        repo.config_writer().set_value("user", "email", "test@example.com").release()
-
-        test_file = self.repo_path / "README.md"
-        test_file.write_text("# Test Repository\n")
-        repo.index.add(["README.md"])
-        repo.index.commit("Initial commit")
-
+        super().setUp()
         self.client = GitClient(self.repo_path)
-
-    def tearDown(self) -> None:
-        """Clean up test fixtures."""
-        self.temp_dir.cleanup()
 
     def test_has_uncommitted_changes_false(self) -> None:
         """Test detecting no uncommitted changes."""
@@ -210,29 +104,10 @@ class TestGitClientChanges(unittest.TestCase):
         self.assertTrue(self.client.has_uncommitted_changes())
 
 
-class TestGitClientCommits(unittest.TestCase):
+class TestGitClientCommits(GitRepoTestCase):
     def setUp(self) -> None:
-        """Set up test fixtures."""
-        self.temp_dir = TemporaryDirectory()
-        self.temp_path = Path(self.temp_dir.name)
-        self.repo_path = self.temp_path / "test_repo"
-        self.repo_path.mkdir()
-
-        repo = Repo.init(self.repo_path)
-
-        repo.config_writer().set_value("user", "name", "Test User").release()
-        repo.config_writer().set_value("user", "email", "test@example.com").release()
-
-        test_file = self.repo_path / "README.md"
-        test_file.write_text("# Test Repository\n")
-        repo.index.add(["README.md"])
-        repo.index.commit("Initial commit")
-
+        super().setUp()
         self.client = GitClient(self.repo_path)
-
-    def tearDown(self) -> None:
-        """Clean up test fixtures."""
-        self.temp_dir.cleanup()
 
     def test_get_last_commit_message(self) -> None:
         """Test getting last commit message."""

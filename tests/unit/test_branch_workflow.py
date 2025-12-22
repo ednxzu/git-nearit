@@ -1,53 +1,25 @@
 """Test branch workflow with commits."""
 
-import unittest
-from pathlib import Path
-from tempfile import TemporaryDirectory
-
 from git import Repo
 
 from git_nearit.clients.git_client import GitClient
+from tests.base import GitRepoTestCase
 
 
-class TestBranchWorkflowWithCommits(unittest.TestCase):
+class TestBranchWorkflowWithCommits(GitRepoTestCase):
     def setUp(self) -> None:
-        self.temp_dir = TemporaryDirectory()
-        self.temp_path = Path(self.temp_dir.name)
-        self.repo_path = self.temp_path / "test_repo"
-        self.repo_path.mkdir()
+        super().setUp()
 
-        repo = Repo.init(self.repo_path)
-
-        repo.config_writer().set_value("user", "name", "Test User").release()
-        repo.config_writer().set_value("user", "email", "test@example.com").release()
+        repo = Repo(self.repo_path)
+        self.initial_commit_sha = repo.head.commit.hexsha
 
         test_file = self.repo_path / "README.md"
-        test_file.write_text("# Initial commit\n")
-        repo.index.add(["README.md"])
-        initial_commit = repo.index.commit("Initial commit")
-
-        try:
-            repo.git.branch("-M", "main")
-        except Exception:
-            pass
-
-        try:
-            repo.create_remote("origin", "https://example.com/test/repo.git")
-        except Exception:
-            pass
-
-        self.initial_commit_sha = initial_commit.hexsha
-
         test_file.write_text("# Initial commit\n\nNew changes by user\n")
         repo.index.add(["README.md"])
         self.user_commit = repo.index.commit("User's new commit")
         self.user_commit_sha = self.user_commit.hexsha
 
         self.client = GitClient(self.repo_path)
-
-    def tearDown(self) -> None:
-        """Clean up test fixtures."""
-        self.temp_dir.cleanup()
 
     def test_commits_transferred_to_change_branch(self) -> None:
         """Test that user commits are on the change branch after workflow."""
