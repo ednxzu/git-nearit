@@ -70,6 +70,42 @@ class TestGiteaClientURLParsing(unittest.TestCase):
         self.assertEqual(client.owner, "owner")
         self.assertEqual(client.repo_name, "repo")
 
+    def test_parse_invalid_ssh_url_no_colon(self):
+        mock_repo = MagicMock()
+        mock_repo.remote.return_value.url = "git@invalid-url"
+
+        with self.assertRaises(ValueError) as context:
+            GiteaClient(mock_repo, token="test-token")
+
+        self.assertIn("Invalid SSH remote URL", str(context.exception))
+
+    def test_parse_invalid_ssh_url_bad_path(self):
+        mock_repo = MagicMock()
+        mock_repo.remote.return_value.url = "git@github.com:owner"
+
+        with self.assertRaises(ValueError) as context:
+            GiteaClient(mock_repo, token="test-token")
+
+        self.assertIn("Invalid SSH remote URL", str(context.exception))
+
+    def test_parse_invalid_https_url_bad_path(self):
+        mock_repo = MagicMock()
+        mock_repo.remote.return_value.url = "https://github.com/owner"
+
+        with self.assertRaises(ValueError) as context:
+            GiteaClient(mock_repo, token="test-token")
+
+        self.assertIn("Invalid remote URL", str(context.exception))
+
+    def test_parse_no_origin_remote(self):
+        mock_repo = MagicMock()
+        mock_repo.remote.side_effect = Exception("No origin")
+
+        with self.assertRaises(ValueError) as context:
+            GiteaClient(mock_repo, token="test-token")
+
+        self.assertIn("Could not get origin remote URL", str(context.exception))
+
 
 class TestGiteaClientAPI(GitRepoTestCase):
     @patch("git_nearit.clients.gitea_client.requests.request")

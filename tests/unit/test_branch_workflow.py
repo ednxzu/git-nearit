@@ -22,7 +22,6 @@ class TestBranchWorkflowWithCommits(GitRepoTestCase):
         self.client = GitClient(self.repo_path)
 
     def test_commits_transferred_to_change_branch(self) -> None:
-        """Test that user commits are on the change branch after workflow."""
         self.assertEqual(self.client.get_current_branch(), "main")
         self.assertEqual(self.client.repo.head.commit.hexsha, self.user_commit_sha)
 
@@ -33,7 +32,6 @@ class TestBranchWorkflowWithCommits(GitRepoTestCase):
         self.assertEqual(self.client.repo.head.commit.message.strip(), "User's new commit")
 
     def test_main_can_be_reset_after_branch_creation(self) -> None:
-        """Test that main can be safely reset after creating change branch."""
         branch_name = self.client.create_change_branch()
         change_branch_commit = self.client.repo.head.commit.hexsha
         self.assertEqual(change_branch_commit, self.user_commit_sha)

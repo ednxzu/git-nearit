@@ -30,22 +30,23 @@ class TestGitClientBranches(GitRepoTestCase):
         self.client = GitClient(self.repo_path)
 
     def test_get_main_branch(self) -> None:
-        """Test getting main branch name."""
         main_branch = self.client.get_main_branch()
         self.assertEqual(main_branch, "master")
 
+    def test_get_main_branch_with_origin_head(self) -> None:
+        self.client.repo.git.symbolic_ref("refs/remotes/origin/HEAD", "refs/remotes/origin/main")
+        main_branch = self.client.get_main_branch()
+        self.assertEqual(main_branch, "main")
+
     def test_get_current_branch(self) -> None:
-        """Test getting current branch name."""
         current_branch = self.client.get_current_branch()
         self.assertEqual(current_branch, "main")
 
     def test_is_on_main_branch(self) -> None:
-        """Test checking if on main branch."""
         # Current branch is "main", but get_main_branch() returns "master"
         self.assertFalse(self.client.is_on_main_branch())
 
     def test_create_change_branch(self) -> None:
-        """Test creating a change branch."""
         branch_name = self.client.create_change_branch()
 
         self.assertTrue(branch_name.startswith("change/"))
@@ -59,7 +60,6 @@ class TestGitClientStash(GitRepoTestCase):
         self.client = GitClient(self.repo_path)
 
     def test_stash_and_pop(self) -> None:
-        """Test stashing and popping changes to tracked files."""
         readme = self.repo_path / "README.md"
         original_content = readme.read_text()
         readme.write_text("# Modified content\n")
@@ -70,8 +70,16 @@ class TestGitClientStash(GitRepoTestCase):
         self.assertEqual(readme.read_text(), "# Modified content\n")
 
     def test_stash_when_nothing_to_stash(self) -> None:
-        """Test stashing when there are no changes."""
         self.assertFalse(self.client.stash_changes())
+
+    def test_pop_stash_when_no_matching_stash(self) -> None:
+        readme = self.repo_path / "README.md"
+        readme.write_text("# Modified\n")
+
+        self.client.stash_changes("different-message")
+
+        result = self.client.pop_stash("non-existent-message")
+        self.assertFalse(result)
 
 
 class TestGitClientChanges(GitRepoTestCase):
@@ -80,25 +88,21 @@ class TestGitClientChanges(GitRepoTestCase):
         self.client = GitClient(self.repo_path)
 
     def test_has_uncommitted_changes_false(self) -> None:
-        """Test detecting no uncommitted changes."""
         self.assertFalse(self.client.has_uncommitted_changes())
 
     def test_untracked_files_not_detected(self) -> None:
-        """Test that untracked files are NOT detected as uncommitted changes."""
         test_file = self.repo_path / "new_untracked_file.txt"
         test_file.write_text("untracked content")
 
         self.assertFalse(self.client.has_uncommitted_changes())
 
     def test_modified_tracked_files_detected(self) -> None:
-        """Test that modified tracked files ARE detected."""
         readme = self.repo_path / "README.md"
         readme.write_text("# Modified content\n")
 
         self.assertTrue(self.client.has_uncommitted_changes())
 
     def test_staged_changes_detected(self) -> None:
-        """Test that staged changes ARE detected."""
         test_file = self.repo_path / "staged_file.txt"
         test_file.write_text("staged content")
         self.client.repo.index.add(["staged_file.txt"])
@@ -115,6 +119,49 @@ class TestGitClientCommits(GitRepoTestCase):
         subject, body = self.client.get_last_commit_message()
         self.assertEqual(subject, "Initial commit")
         self.assertIsInstance(body, str)
+
+    def test_get_last_commit_message_with_body(self) -> None:
+        test_file = self.repo_path / "test.txt"
+        test_file.write_text("test content")
+        self.client.repo.index.add(["test.txt"])
+        self.client.repo.index.commit("Test subject\n\nTest body line 1\nTest body line 2")
+
+        subject, body = self.client.get_last_commit_message()
+
+        self.assertEqual(subject, "Test subject")
+        self.assertEqual(body, "Test body line 1\nTest body line 2")
+
+
+class TestGitClientPush(GitRepoTestCase):
+    def setUp(self) -> None:
+        super().setUp()
+        self.client = GitClient(self.repo_path)
+
+    def test_push_branch_without_force_with_lease(self) -> None:
+        test_branch = "test/no-force"
+        self.client.repo.git.checkout("-b", test_branch)
+
+        mock_git = MagicMock()
+        mock_git.push = MagicMock()
+
+        with patch.object(self.client.repo, "git", mock_git):
+            self.client.push_branch(test_branch, force_with_lease=False)
+
+        mock_git.push.assert_called_once_with("-u", "origin", test_branch, "--quiet")
+
+    def test_push_branch_without_set_upstream(self) -> None:
+        test_branch = "test/no-upstream"
+        self.client.repo.git.checkout("-b", test_branch)
+
+        mock_git = MagicMock()
+        mock_git.push = MagicMock()
+
+        with patch.object(self.client.repo, "git", mock_git):
+            self.client.push_branch(test_branch, set_upstream=False)
+
+        mock_git.push.assert_called_once_with(
+            "origin", test_branch, "--quiet", "--force-with-lease"
+        )
 
 
 class TestGitClientFetchAndCheckout(GitRepoTestCase):

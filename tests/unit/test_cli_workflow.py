@@ -3,10 +3,7 @@ from tests.base import GitRepoTestCase
 
 
 class TestCLIWorkflow(GitRepoTestCase):
-    """Test CLI workflow scenarios."""
-
     def test_workflow_fails_with_uncommitted_changes(self) -> None:
-        """Test that workflow exits early with uncommitted changes to tracked files."""
         git_client = GitClient(self.repo_path)
 
         readme = self.repo_path / "README.md"
@@ -15,7 +12,6 @@ class TestCLIWorkflow(GitRepoTestCase):
         self.assertTrue(git_client.has_uncommitted_changes())
 
     def test_workflow_allows_untracked_files(self) -> None:
-        """Test that workflow allows untracked files to proceed."""
         git_client = GitClient(self.repo_path)
 
         test_file = self.repo_path / "untracked.txt"
@@ -27,7 +23,6 @@ class TestCLIWorkflow(GitRepoTestCase):
         self.assertTrue(branch_name.startswith("change/"))
 
     def test_workflow_succeeds_with_clean_working_tree(self) -> None:
-        """Test that workflow can proceed with clean working tree."""
         git_client = GitClient(self.repo_path)
 
         self.assertFalse(git_client.has_uncommitted_changes())
@@ -37,7 +32,6 @@ class TestCLIWorkflow(GitRepoTestCase):
         self.assertEqual(git_client.get_current_branch(), branch_name)
 
     def test_workflow_on_existing_change_branch(self) -> None:
-        """Test workflow when already on a change branch."""
         git_client = GitClient(self.repo_path)
 
         change_branch = "change/20250101120000"
@@ -49,7 +43,6 @@ class TestCLIWorkflow(GitRepoTestCase):
         self.assertFalse(git_client.is_on_main_branch())
 
     def test_workflow_creates_change_branch_from_target_branch(self) -> None:
-        """Test that workflow creates change branch when on target branch (not main)."""
         git_client = GitClient(self.repo_path)
 
         git_client.repo.git.checkout("-b", "develop")
