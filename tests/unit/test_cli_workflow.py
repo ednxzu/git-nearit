@@ -59,7 +59,7 @@ class TestCLIWorkflow(GitRepoTestCase):
         git_client.repo.index.add(["develop.txt"])
         develop_commit = git_client.repo.index.commit("Add develop file")
 
-        git_client.repo.create_head("develop", develop_commit)
+        git_client.repo.create_head("develop", develop_commit.hexsha)
 
         self.assertEqual(git_client.get_current_branch(), "develop")
         self.assertFalse(git_client.is_on_main_branch())
