@@ -120,6 +120,17 @@ class GiteaClient(BaseVCSClient):
         except Exception as e:
             raise GiteaAPIError(f"Failed to create review: {e}") from e
 
+    def get_pull_request(self, pr_id: int) -> dict:
+        route = f"/repos/{self.owner}/{self.repo_name}/pulls/{pr_id}"
+
+        try:
+            result = self._make_request("GET", route)
+            return result
+        except GiteaAPIError:
+            raise
+        except Exception as e:
+            raise GiteaAPIError(f"Failed to get pull request {pr_id}: {e}") from e
+
     def get_repository_info(self) -> dict[str, str]:
         return {
             "platform": "gitea",

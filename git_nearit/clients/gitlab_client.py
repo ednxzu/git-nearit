@@ -21,6 +21,14 @@ class GitLabClient(BaseVCSClient):
             number=1,
         )
 
+    def get_pull_request(self, pr_id: int) -> dict:
+        # Stub implementation - needs to be implemented
+        return {
+            "title": "Example Merge Request",
+            "head": {"ref": "change/20231215120000"},
+            "base": {"ref": "main"},
+        }
+
     def get_repository_info(self) -> dict[str, str]:
         return {
             "platform": "gitlab",

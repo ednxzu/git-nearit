@@ -100,16 +100,89 @@ def run_review(platform: str, target_branch: Optional[str] = None) -> None:
         sys.exit(1)
 
 
+def download_review(platform: str, pr_id: int) -> None:
+    """Download and checkout a pull request branch."""
+    logger = setup_logging()
+
+    try:
+        git_client = GitClient()
+        logger.info("Initialized git client")
+
+        if git_client.has_uncommitted_changes():
+            logger.error(
+                "You have uncommitted changes to tracked files. "
+                "Please commit or stash them before downloading a review."
+            )
+            logger.info("Note: Untracked files are fine and will be preserved.")
+            sys.exit(1)
+
+        if platform == "gitea":
+            vcs_client = GiteaClient(git_client.repo)
+        else:  # lab
+            vcs_client = GitLabClient(git_client.repo)
+
+        logger.info(f"Fetching pull request #{pr_id}...")
+        pr_data = vcs_client.get_pull_request(pr_id)
+
+        branch_name = pr_data.get("head", {}).get("ref")
+        if not branch_name:
+            logger.error(f"Could not determine branch name for PR #{pr_id}")
+            sys.exit(1)
+
+        pr_title = pr_data.get("title", "Unknown")
+        logger.info(f"PR #{pr_id}: {pr_title}")
+        logger.info(f"Branch: {branch_name}")
+
+        logger.info(f"Fetching and checking out branch {branch_name}...")
+        git_client.fetch_and_checkout_branch(branch_name)
+        logger.info(f"Successfully checked out branch: {branch_name}")
+
+    except ValueError as e:
+        logger.error(str(e))
+        sys.exit(1)
+    except Exception as e:
+        logger.exception(f"Unexpected error: {e}")
+        sys.exit(1)
+
+
 def tea_review() -> None:
     """Entry point for git-tea-review command."""
-    target_branch = sys.argv[1] if len(sys.argv) > 1 else None
-    run_review("gitea", target_branch)
+    # Parse arguments for -d flag
+    if len(sys.argv) > 1 and sys.argv[1] == "-d":
+        if len(sys.argv) < 3:
+            logger = setup_logging()
+            logger.error("Usage: git-tea-review -d <pull_request_id>")
+            sys.exit(1)
+        try:
+            pr_id = int(sys.argv[2])
+            download_review("gitea", pr_id)
+        except ValueError:
+            logger = setup_logging()
+            logger.error("Pull request ID must be a number")
+            sys.exit(1)
+    else:
+        target_branch = sys.argv[1] if len(sys.argv) > 1 else None
+        run_review("gitea", target_branch)
 
 
 def lab_review() -> None:
     """Entry point for git-lab-review command."""
-    target_branch = sys.argv[1] if len(sys.argv) > 1 else None
-    run_review("gitlab", target_branch)
+    # Parse arguments for -d flag
+    if len(sys.argv) > 1 and sys.argv[1] == "-d":
+        if len(sys.argv) < 3:
+            logger = setup_logging()
+            logger.error("Usage: git-lab-review -d <pull_request_id>")
+            sys.exit(1)
+        try:
+            pr_id = int(sys.argv[2])
+            download_review("gitlab", pr_id)
+        except ValueError:
+            logger = setup_logging()
+            logger.error("Pull request ID must be a number")
+            sys.exit(1)
+    else:
+        target_branch = sys.argv[1] if len(sys.argv) > 1 else None
+        run_review("gitlab", target_branch)
 
 
 if __name__ == "__main__":

@@ -149,3 +149,45 @@ class TestGiteaClientAPI(GitRepoTestCase):
             client.create_review("title", "desc", "branch", "main")
 
         self.assertIn("HTTP 404", str(context.exception))
+
+    @patch("git_nearit.clients.gitea_client.requests.request")
+    def test_get_pull_request(self, mock_request):
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.content = True
+        mock_response.json.return_value = {
+            "title": "feat/test-feature",
+            "html_url": "https://example.com/test/repo/pulls/42",
+            "number": 42,
+            "head": {"ref": "change/20231215120000"},
+            "base": {"ref": "main"},
+        }
+        mock_request.return_value = mock_response
+
+        client = GiteaClient(Repo(self.repo_path), token="test-token")
+        pr_data = client.get_pull_request(42)
+
+        self.assertEqual(pr_data["title"], "feat/test-feature")
+        self.assertEqual(pr_data["number"], 42)
+        self.assertEqual(pr_data["head"]["ref"], "change/20231215120000")
+        self.assertEqual(pr_data["base"]["ref"], "main")
+
+    @patch("git_nearit.clients.gitea_client.requests.request")
+    def test_get_pull_request_not_found(self, mock_request):
+        mock_response = MagicMock()
+        mock_response.status_code = 404
+        mock_response.text = "Pull request not found"
+        mock_response.raise_for_status.side_effect = Exception("HTTP 404")
+
+        from requests.exceptions import HTTPError
+
+        http_error = HTTPError()
+        http_error.response = mock_response
+        mock_request.side_effect = http_error
+
+        client = GiteaClient(Repo(self.repo_path), token="test-token")
+
+        with self.assertRaises(GiteaAPIError) as context:
+            client.get_pull_request(999)
+
+        self.assertIn("HTTP 404", str(context.exception))

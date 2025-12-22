@@ -1,3 +1,5 @@
+from unittest.mock import MagicMock, patch
+
 from git import Repo
 
 from git_nearit.clients.git_client import GitClient
@@ -110,7 +112,80 @@ class TestGitClientCommits(GitRepoTestCase):
         self.client = GitClient(self.repo_path)
 
     def test_get_last_commit_message(self) -> None:
-        """Test getting last commit message."""
         subject, body = self.client.get_last_commit_message()
         self.assertEqual(subject, "Initial commit")
         self.assertIsInstance(body, str)
+
+
+class TestGitClientFetchAndCheckout(GitRepoTestCase):
+    def setUp(self) -> None:
+        super().setUp()
+        self.client = GitClient(self.repo_path)
+
+    def test_fetch_and_checkout_new_branch(self) -> None:
+        test_branch = "feature/new-feature"
+
+        self.client.repo.git.checkout("-b", test_branch)
+        test_file = self.repo_path / "feature.txt"
+        test_file.write_text("feature content")
+        self.client.repo.index.add(["feature.txt"])
+        self.client.repo.index.commit("Add feature")
+
+        self.client.repo.create_head(f"origin/{test_branch}", test_branch)
+
+        self.client.repo.git.checkout("main")
+        self.client.repo.git.branch("-D", test_branch)
+
+        real_git = self.client.repo.git
+        mock_git = MagicMock()
+        mock_git.fetch = MagicMock()
+        mock_git.checkout = MagicMock(side_effect=real_git.checkout)
+        mock_git.reset = MagicMock(side_effect=real_git.reset)
+
+        with patch.object(self.client.repo, "git", mock_git):
+            self.client.fetch_and_checkout_branch(test_branch)
+
+        mock_git.fetch.assert_called_once_with("origin", test_branch)
+        mock_git.checkout.assert_called_once_with("-b", test_branch, f"origin/{test_branch}")
+
+    def test_fetch_and_checkout_existing_branch(self) -> None:
+        test_branch = "feature/existing"
+
+        self.client.repo.git.checkout("-b", test_branch)
+        test_file = self.repo_path / "existing.txt"
+        test_file.write_text("v1")
+        self.client.repo.index.add(["existing.txt"])
+        self.client.repo.index.commit("v1")
+
+        test_file.write_text("v2")
+        self.client.repo.index.add(["existing.txt"])
+        self.client.repo.index.commit("v2")
+
+        self.client.repo.create_head(f"origin/{test_branch}", test_branch)
+        self.client.repo.git.checkout("main")
+
+        real_git = self.client.repo.git
+        mock_git = MagicMock()
+        mock_git.fetch = MagicMock()
+        mock_git.checkout = MagicMock(side_effect=real_git.checkout)
+        mock_git.reset = MagicMock(side_effect=real_git.reset)
+
+        with patch.object(self.client.repo, "git", mock_git):
+            self.client.fetch_and_checkout_branch(test_branch)
+
+        mock_git.fetch.assert_called_once_with("origin", test_branch)
+        mock_git.checkout.assert_called_once_with(test_branch)
+        mock_git.reset.assert_called_once_with("--hard", f"origin/{test_branch}")
+
+    def test_fetch_and_checkout_fails_with_nonexistent_branch(self) -> None:
+        from git.exc import GitCommandError
+
+        mock_git = MagicMock()
+        mock_git.fetch.side_effect = GitCommandError("git fetch", 128)
+
+        with patch.object(self.client.repo, "git", mock_git):
+            with self.assertRaises(ValueError) as context:
+                self.client.fetch_and_checkout_branch("nonexistent/branch")
+
+        self.assertIn("Failed to fetch and checkout branch", str(context.exception))
+        mock_git.fetch.assert_called_once_with("origin", "nonexistent/branch")

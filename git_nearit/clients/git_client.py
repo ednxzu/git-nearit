@@ -87,3 +87,18 @@ class GitClient:
 
     def has_uncommitted_changes(self) -> bool:
         return self.repo.is_dirty(untracked_files=False)
+
+    def fetch_and_checkout_branch(self, branch_name: str) -> None:
+        try:
+            self.repo.git.fetch("origin", branch_name)
+
+            local_branches = [ref.name for ref in self.repo.branches]
+
+            if branch_name in local_branches:
+                self.repo.git.checkout(branch_name)
+                self.repo.git.reset("--hard", f"origin/{branch_name}")
+            else:
+                self.repo.git.checkout("-b", branch_name, f"origin/{branch_name}")
+
+        except GitCommandError as e:
+            raise ValueError(f"Failed to fetch and checkout branch '{branch_name}': {e}") from e
