@@ -337,7 +337,7 @@ class TestGiteaClientAPI(GitRepoTestCase):
         mock_request.assert_called_once()
         call_kwargs = mock_request.call_args[1]
         self.assertIn("params", call_kwargs)
-        self.assertEqual(call_kwargs["params"]["base"], "develop")
+        self.assertEqual(call_kwargs["params"]["base_branch"], "develop")
         self.assertEqual(call_kwargs["params"]["state"], "open")
 
         self.assertEqual(len(reviews), 1)
