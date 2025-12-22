@@ -82,7 +82,14 @@ class GitClient:
     def get_last_commit_message(self) -> tuple[str, str]:
         commit = self.repo.head.commit
         subject = commit.summary
-        body = commit.message.replace(subject, "", 1).strip()
+        message = commit.message
+
+        if isinstance(subject, bytes):
+            subject = subject.decode("utf-8")
+        if isinstance(message, bytes):
+            message = message.decode("utf-8")
+
+        body = message.replace(subject, "", 1).strip()
         return subject, body
 
     def has_uncommitted_changes(self) -> bool:
