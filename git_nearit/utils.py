@@ -53,7 +53,7 @@ def edit_in_editor(initial_content: str, prefix: str = "git-nearit") -> str:
     HEADER = "# ---- EDIT BELOW THIS LINE ----"
     FOOTER = "# ---- EDIT ABOVE THIS LINE ----"
 
-    full_content = f"{HEADER}\n{initial_content}\n{FOOTER}"
+    full_content = f"{HEADER}\n\n{initial_content}\n\n{FOOTER}"
 
     with tempfile.NamedTemporaryFile(mode="w+", suffix=".txt", prefix=prefix, delete=False) as tmp:
         tmp.write(full_content)
@@ -67,11 +67,17 @@ def edit_in_editor(initial_content: str, prefix: str = "git-nearit") -> str:
 
     lines = content.split("\n")
 
-    if lines and lines[0] == HEADER:
-        lines = lines[1:]
+    try:
+        header_idx = lines.index(HEADER)
+        lines = lines[header_idx + 1 :]
+    except ValueError:
+        pass
 
-    if lines and lines[-1] == FOOTER:
-        lines = lines[:-1]
+    try:
+        footer_idx = lines.index(FOOTER)
+        lines = lines[:footer_idx]
+    except ValueError:
+        pass
 
     result = "\n".join(lines).strip()
 
