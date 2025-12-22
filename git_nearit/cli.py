@@ -1,4 +1,5 @@
 import sys
+from typing import Optional
 
 import typer
 
@@ -10,7 +11,7 @@ from git_nearit.utils import get_pr_description, get_pr_title, setup_logging
 app = typer.Typer()
 
 
-def run_review(platform: str) -> None:
+def run_review(platform: str, target_branch: Optional[str] = None) -> None:
     logger = setup_logging()
 
     try:
@@ -28,14 +29,26 @@ def run_review(platform: str) -> None:
         main_branch = git_client.get_main_branch()
         current_branch = git_client.get_current_branch()
 
-        if git_client.is_on_main_branch():
-            logger.info(f"On main branch ({main_branch}), creating new change branch")
+        target = target_branch or main_branch
+
+        if target_branch:
+            logger.info(f"Targeting branch: {target}")
+        else:
+            logger.info(f"Targeting default branch: {target}")
+
+        if git_client.is_on_main_branch() or current_branch == target:
+            if git_client.is_on_main_branch():
+                logger.info(f"On main branch ({main_branch}), creating new change branch")
+            else:
+                logger.info(f"On target branch ({target}), creating new change branch")
 
             branch_name = git_client.create_change_branch()
             logger.info(f"Created branch: {branch_name}")
 
-            git_client.reset_main_to_origin()
-            logger.info(f"Reset {main_branch} to origin/{main_branch}")
+            current_to_reset = main_branch if git_client.is_on_main_branch() else target
+            git_client.repo.git.checkout(current_to_reset)
+            git_client.repo.git.reset("--hard", f"origin/{current_to_reset}")
+            logger.info(f"Reset {current_to_reset} to origin/{current_to_reset}")
 
             git_client.repo.git.checkout(branch_name)
         elif current_branch.startswith("change/"):
@@ -53,13 +66,13 @@ def run_review(platform: str) -> None:
             logger.error(f"Push failed: {e}")
             sys.exit(1)
 
-        if platform == "tea":
+        if platform == "gitea":
             vcs_client = GiteaClient(git_client.repo)
         else:  # lab
             vcs_client = GitLabClient(git_client.repo)
 
         logger.info("Checking for existing review...")
-        existing_review = vcs_client.check_existing_review(branch_name, main_branch)
+        existing_review = vcs_client.check_existing_review(branch_name, target)
 
         if existing_review:
             logger.info(f"Review already exists: {existing_review.title}")
@@ -75,7 +88,7 @@ def run_review(platform: str) -> None:
         description = get_pr_description(subject, body)
 
         logger.info("Creating review...")
-        review = vcs_client.create_review(title, description, branch_name, main_branch)
+        review = vcs_client.create_review(title, description, branch_name, target)
         logger.info("Review created successfully!")
         logger.info(f"URL: {review.url}")
 
@@ -89,12 +102,14 @@ def run_review(platform: str) -> None:
 
 def tea_review() -> None:
     """Entry point for git-tea-review command."""
-    run_review("tea")
+    target_branch = sys.argv[1] if len(sys.argv) > 1 else None
+    run_review("gitea", target_branch)
 
 
 def lab_review() -> None:
     """Entry point for git-lab-review command."""
-    run_review("lab")
+    target_branch = sys.argv[1] if len(sys.argv) > 1 else None
+    run_review("gitlab", target_branch)
 
 
 if __name__ == "__main__":

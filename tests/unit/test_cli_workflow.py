@@ -47,3 +47,29 @@ class TestCLIWorkflow(GitRepoTestCase):
         self.assertTrue(git_client.get_current_branch().startswith("change/"))
 
         self.assertFalse(git_client.is_on_main_branch())
+
+    def test_workflow_creates_change_branch_from_target_branch(self) -> None:
+        """Test that workflow creates change branch when on target branch (not main)."""
+        git_client = GitClient(self.repo_path)
+
+        git_client.repo.git.checkout("-b", "develop")
+
+        test_file = self.repo_path / "develop.txt"
+        test_file.write_text("develop content\n")
+        git_client.repo.index.add(["develop.txt"])
+        develop_commit = git_client.repo.index.commit("Add develop file")
+
+        git_client.repo.create_head("develop", develop_commit)
+
+        self.assertEqual(git_client.get_current_branch(), "develop")
+        self.assertFalse(git_client.is_on_main_branch())
+
+        current_branch = git_client.get_current_branch()
+        target = "develop"
+
+        should_create_change = git_client.is_on_main_branch() or current_branch == target
+        self.assertTrue(should_create_change)
+
+        change_branch = git_client.create_change_branch()
+        self.assertTrue(change_branch.startswith("change/"))
+        self.assertEqual(git_client.get_current_branch(), change_branch)
