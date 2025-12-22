@@ -18,7 +18,7 @@ def get_git_config(key: str, default: str = "") -> str:
                 env_var = env_match.group(1)
                 return os.getenv(env_var, default)
 
-        return value
+        return str(value)
     except Exception:
         return default
 
