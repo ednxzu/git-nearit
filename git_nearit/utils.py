@@ -4,7 +4,7 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
-from typing import Optional
+from typing import Callable, Optional
 
 import questionary
 from rich.console import Console
@@ -41,7 +41,7 @@ def select_from_menu(prompt: str, choices: list[str]) -> str:
     return result
 
 
-def get_text_input(prompt: str, validate: Optional[callable] = None) -> str:
+def get_text_input(prompt: str, validate: Optional[Callable] = None) -> str:
     result = questionary.text(prompt, validate=validate).ask()
     if result is None:
         console.print("[ERROR] Input cancelled", style="bold red")
