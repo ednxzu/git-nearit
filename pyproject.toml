@@ -17,7 +17,7 @@ git-tea-review = "git_nearit.cli:tea_review"
 git-lab-review = "git_nearit.cli:lab_review"
 
 [dependency-groups]
-dev = ["pytest>=9.0.2", "pytest-cov>=7.0.0", "ruff>=0.14.10"]
+test = ["pytest>=9.0.2", "pytest-cov>=7.0.0", "ruff>=0.14.10"]
 
 [build-system]
 requires = ["hatchling"]
