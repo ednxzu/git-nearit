@@ -1,0 +1,25 @@
+## v0.1.0 (2025-12-22)
+
+### Feat
+
+- add list option for reviews
+- use proper typer commands in cli
+- introduce -d flag for downloading reviews
+- allow review on non-default branch
+- add gitea client
+- support passing environment variables in gitconfig
+- split some input functions to utils
+- **GitClient**: keep untracked files safe from hard reset
+- add initial GitClient and cli scaffholding
+
+### Fix
+
+- type expression in utils functions
+- enforce type returned from git config entries
+- correctly parse gitconfig ouput
+- rename operations to review to stay agnostic
+- drop emoji option for logging
+
+### Refactor
+
+- move all review handling to vcs clients
