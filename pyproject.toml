@@ -12,12 +12,19 @@ dependencies = [
   "rich>=14.2.0",
 ]
 
+[dependency-groups]
+test = ["pytest>=9.0.2", "pytest-cov>=7.0.0", "ruff>=0.14.10"]
+
 [project.scripts]
 git-tea-review = "git_nearit.main:tea_review"
 git-lab-review = "git_nearit.main:lab_review"
 
-[dependency-groups]
-test = ["pytest>=9.0.2", "pytest-cov>=7.0.0", "ruff>=0.14.10"]
+[[tool.uv.index]]
+name = "ednz-cloud"
+url = "https://git.ednz.fr/api/packages/ednz-cloud/pypi/simple/"
+publish-url = "https://git.ednz.fr/api/packages/ednz-cloud/pypi"
+authenticate = "always"
+explicit = true
 
 [build-system]
 requires = ["hatchling"]
@@ -26,3 +33,10 @@ build-backend = "hatchling.build"
 [tool.ruff]
 line-length = 100
 target-version = "py310"
+
+[tool.commitizen]
+name = "cz_conventional_commits"
+version_provider = "uv"
+tag_format = "v$version"
+update_changelog_on_bump = true
+version_files = ["pyproject.toml:^version"]
