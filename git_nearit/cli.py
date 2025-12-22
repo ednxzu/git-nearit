@@ -1,5 +1,5 @@
 import sys
-from typing import Optional
+from typing import Annotated, Optional
 
 import typer
 
@@ -8,7 +8,11 @@ from git_nearit.clients.gitea_client import GiteaClient
 from git_nearit.clients.gitlab_client import GitLabClient
 from git_nearit.utils import get_pr_description, get_pr_title, setup_logging
 
-app = typer.Typer()
+
+def validate_mutually_exclusive_args(target_branch: Optional[str], download: Optional[int]) -> None:
+    if download is not None and target_branch is not None:
+        typer.echo("Error: Cannot specify both TARGET_BRANCH and --download", err=True)
+        raise typer.Exit(1)
 
 
 def run_review(platform: str, target_branch: Optional[str] = None) -> None:
@@ -146,44 +150,56 @@ def download_review(platform: str, pr_id: int) -> None:
 
 
 def tea_review() -> None:
-    """Entry point for git-tea-review command."""
-    # Parse arguments for -d flag
-    if len(sys.argv) > 1 and sys.argv[1] == "-d":
-        if len(sys.argv) < 3:
-            logger = setup_logging()
-            logger.error("Usage: git-tea-review -d <pull_request_id>")
-            sys.exit(1)
-        try:
-            pr_id = int(sys.argv[2])
-            download_review("gitea", pr_id)
-        except ValueError:
-            logger = setup_logging()
-            logger.error("Pull request ID must be a number")
-            sys.exit(1)
-    else:
-        target_branch = sys.argv[1] if len(sys.argv) > 1 else None
-        run_review("gitea", target_branch)
+    """Submit or download a review for Gitea."""
+
+    def main(
+        target_branch: Annotated[
+            Optional[str],
+            typer.Argument(help="Target branch for the pull request (defaults to main branch)"),
+        ] = None,
+        download: Annotated[
+            Optional[int],
+            typer.Option(
+                "-d",
+                "--download",
+                help="Download and checkout a pull request by ID",
+                metavar="PR_ID",
+            ),
+        ] = None,
+    ) -> None:
+        validate_mutually_exclusive_args(target_branch, download)
+
+        if download is not None:
+            download_review("gitea", download)
+        else:
+            run_review("gitea", target_branch)
+
+    typer.run(main)
 
 
 def lab_review() -> None:
-    """Entry point for git-lab-review command."""
-    # Parse arguments for -d flag
-    if len(sys.argv) > 1 and sys.argv[1] == "-d":
-        if len(sys.argv) < 3:
-            logger = setup_logging()
-            logger.error("Usage: git-lab-review -d <pull_request_id>")
-            sys.exit(1)
-        try:
-            pr_id = int(sys.argv[2])
-            download_review("gitlab", pr_id)
-        except ValueError:
-            logger = setup_logging()
-            logger.error("Pull request ID must be a number")
-            sys.exit(1)
-    else:
-        target_branch = sys.argv[1] if len(sys.argv) > 1 else None
-        run_review("gitlab", target_branch)
+    """Submit or download a review for GitLab."""
 
+    def main(
+        target_branch: Annotated[
+            Optional[str],
+            typer.Argument(help="Target branch for the merge request (defaults to main branch)"),
+        ] = None,
+        download: Annotated[
+            Optional[int],
+            typer.Option(
+                "-d",
+                "--download",
+                help="Download and checkout a merge request by ID",
+                metavar="MR_ID",
+            ),
+        ] = None,
+    ) -> None:
+        validate_mutually_exclusive_args(target_branch, download)
 
-if __name__ == "__main__":
-    app()
+        if download is not None:
+            download_review("gitlab", download)
+        else:
+            run_review("gitlab", target_branch)
+
+    typer.run(main)
