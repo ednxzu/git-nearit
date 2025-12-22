@@ -2,6 +2,7 @@ import unittest
 from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
+from git_nearit.clients.base_vcs_client import Review
 from git_nearit.utils import display_reviews_table, format_relative_time
 
 
@@ -70,24 +71,26 @@ class TestDisplayReviewsTable(unittest.TestCase):
     @patch("git_nearit.utils.console")
     def test_display_reviews_with_data(self, mock_console) -> None:
         reviews = [
-            {
-                "number": 1,
-                "title": "feat/test-feature",
-                "user": {"login": "testuser"},
-                "state": "open",
-                "draft": False,
-                "created_at": "2025-12-22T10:00:00Z",
-                "updated_at": "2025-12-22T12:00:00Z",
-            },
-            {
-                "number": 2,
-                "title": "This is a very long title that should be truncated because it exceeds the maximum length",
-                "user": {"login": "developer"},
-                "state": "closed",
-                "draft": True,
-                "created_at": "2025-12-21T10:00:00Z",
-                "updated_at": "2025-12-22T10:00:00Z",
-            },
+            Review(
+                number=1,
+                title="feat/test-feature",
+                url="https://example.com/pulls/1",
+                author="testuser",
+                state="open",
+                draft=False,
+                created_at="2025-12-22T10:00:00Z",
+                updated_at="2025-12-22T12:00:00Z",
+            ),
+            Review(
+                number=2,
+                title="This is a very long title that should be truncated because it exceeds the maximum length",
+                url="https://example.com/pulls/2",
+                author="developer",
+                state="closed",
+                draft=True,
+                created_at="2025-12-21T10:00:00Z",
+                updated_at="2025-12-22T10:00:00Z",
+            ),
         ]
 
         display_reviews_table(reviews, "develop")
@@ -100,12 +103,12 @@ class TestDisplayReviewsTable(unittest.TestCase):
     @patch("git_nearit.utils.console")
     def test_display_reviews_with_missing_fields(self, mock_console) -> None:
         reviews = [
-            {
-                "number": 1,
-                # Missing many fields
-            }
+            Review(
+                number=1,
+                title="minimal-review",
+                url="https://example.com/pulls/1",
+            )
         ]
 
-        # Should not crash even with missing fields
         display_reviews_table(reviews, "main")
         mock_console.print.assert_called_once()

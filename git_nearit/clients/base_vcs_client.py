@@ -1,15 +1,22 @@
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from typing import Optional
 from urllib.parse import urlparse
 
 from git import Repo
 
 
+@dataclass
 class Review:
-    def __init__(self, title: str, url: str, number: int):
-        self.title = title
-        self.url = url
-        self.number = number
+    title: str
+    url: str
+    number: int
+    # Optional fields for list views
+    author: Optional[str] = None
+    state: Optional[str] = None
+    draft: Optional[bool] = None
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
 
 
 class BaseVCSClient(ABC):
@@ -83,5 +90,5 @@ class BaseVCSClient(ABC):
         pass
 
     @abstractmethod
-    def list_reviews(self, base_branch: str, state: str = "open") -> list[dict]:
+    def list_reviews(self, base_branch: str, state: str = "open") -> list[Review]:
         pass

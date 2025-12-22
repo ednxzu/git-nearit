@@ -265,10 +265,11 @@ class TestGiteaClientAPI(GitRepoTestCase):
         reviews = client.list_reviews("main")
 
         self.assertEqual(len(reviews), 2)
-        self.assertEqual(reviews[0]["number"], 1)
-        self.assertEqual(reviews[0]["title"], "feat/test-feature")
-        self.assertEqual(reviews[1]["number"], 2)
-        self.assertEqual(reviews[1]["draft"], True)
+        self.assertEqual(reviews[0].number, 1)
+        self.assertEqual(reviews[0].title, "feat/test-feature")
+        self.assertEqual(reviews[0].author, "testuser")
+        self.assertEqual(reviews[1].number, 2)
+        self.assertEqual(reviews[1].draft, True)
 
     @patch("git_nearit.clients.gitea_client.requests.request")
     def test_list_reviews_empty(self, mock_request):
@@ -292,8 +293,12 @@ class TestGiteaClientAPI(GitRepoTestCase):
             {
                 "number": 3,
                 "title": "merged-pr",
+                "html_url": "https://example.com/test/repo/pulls/3",
                 "state": "closed",
+                "draft": False,
                 "user": {"login": "testuser"},
+                "created_at": "2025-12-20T10:00:00Z",
+                "updated_at": "2025-12-22T10:00:00Z",
                 "base": {"ref": "main"},
             }
         ]
@@ -303,51 +308,38 @@ class TestGiteaClientAPI(GitRepoTestCase):
         reviews = client.list_reviews("main", state="closed")
 
         self.assertEqual(len(reviews), 1)
-        self.assertEqual(reviews[0]["state"], "closed")
+        self.assertEqual(reviews[0].state, "closed")
 
     @patch("git_nearit.clients.gitea_client.requests.request")
-    def test_list_reviews_filters_by_base_branch(self, mock_request):
-        """Test that list_reviews filters client-side by base branch."""
+    def test_list_reviews_uses_server_side_filtering(self, mock_request):
         mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.content = True
-        # API returns PRs for different base branches
         mock_response.json.return_value = [
-            {
-                "number": 1,
-                "title": "PR targeting main",
-                "state": "open",
-                "user": {"login": "testuser"},
-                "base": {"ref": "main"},
-                "head": {"ref": "feature-1"},
-            },
             {
                 "number": 2,
                 "title": "PR targeting develop",
+                "html_url": "https://example.com/test/repo/pulls/2",
                 "state": "open",
+                "draft": False,
                 "user": {"login": "testuser"},
+                "created_at": "2025-12-20T10:00:00Z",
+                "updated_at": "2025-12-22T10:00:00Z",
                 "base": {"ref": "develop"},
                 "head": {"ref": "feature-2"},
-            },
-            {
-                "number": 3,
-                "title": "Another PR targeting main",
-                "state": "open",
-                "user": {"login": "testuser"},
-                "base": {"ref": "main"},
-                "head": {"ref": "feature-3"},
             },
         ]
         mock_request.return_value = mock_response
 
         client = GiteaClient(Repo(self.repo_path), token="test-token")
-
         reviews = client.list_reviews("develop")
-        self.assertEqual(len(reviews), 1)
-        self.assertEqual(reviews[0]["number"], 2)
-        self.assertEqual(reviews[0]["title"], "PR targeting develop")
 
-        reviews = client.list_reviews("main")
-        self.assertEqual(len(reviews), 2)
-        self.assertEqual(reviews[0]["number"], 1)
-        self.assertEqual(reviews[1]["number"], 3)
+        mock_request.assert_called_once()
+        call_kwargs = mock_request.call_args[1]
+        self.assertIn("params", call_kwargs)
+        self.assertEqual(call_kwargs["params"]["base"], "develop")
+        self.assertEqual(call_kwargs["params"]["state"], "open")
+
+        self.assertEqual(len(reviews), 1)
+        self.assertEqual(reviews[0].number, 2)
+        self.assertEqual(reviews[0].title, "PR targeting develop")

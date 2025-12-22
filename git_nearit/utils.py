@@ -12,6 +12,8 @@ from rich.console import Console
 from rich.logging import RichHandler
 from rich.table import Table
 
+from git_nearit.clients.base_vcs_client import Review
+
 console = Console()
 
 
@@ -141,7 +143,7 @@ def format_relative_time(iso_timestamp: str) -> str:
         return iso_timestamp
 
 
-def display_reviews_table(reviews: list[dict], base_branch: str) -> None:
+def display_reviews_table(reviews: list[Review], base_branch: str) -> None:
     if not reviews:
         console.print(f"[yellow]No open reviews found for branch '{base_branch}'[/yellow]")
         return
@@ -158,14 +160,13 @@ def display_reviews_table(reviews: list[dict], base_branch: str) -> None:
     table.add_column("Updated", style="blue", width=10)
 
     for review in reviews:
-        number = str(review.get("number", "?"))
-        title = review.get("title", "")
-        # Truncate title if too long
+        number = str(review.number if review.number else "?")
+        title = review.title or ""
         if len(title) > 47:
             title = title[:44] + "..."
 
-        author = review.get("user", {}).get("login", "unknown")
-        state = review.get("state", "unknown")
+        author = review.author or "unknown"
+        state = review.state or "unknown"
 
         if state == "open":
             state_str = "[green]open[/green]"
@@ -176,10 +177,10 @@ def display_reviews_table(reviews: list[dict], base_branch: str) -> None:
         else:
             state_str = state
 
-        draft = "✓" if review.get("draft", False) else ""
+        draft = "✓" if review.draft else ""
 
-        created_at = format_relative_time(review.get("created_at", ""))
-        updated_at = format_relative_time(review.get("updated_at", ""))
+        created_at = format_relative_time(review.created_at or "")
+        updated_at = format_relative_time(review.updated_at or "")
 
         table.add_row(number, title, author, state_str, draft, created_at, updated_at)
 

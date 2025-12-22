@@ -2,6 +2,7 @@ import unittest
 from unittest.mock import MagicMock, patch
 
 from git_nearit.cli import download_review, list_reviews, run_review
+from git_nearit.clients.base_vcs_client import Review
 
 
 class TestRunReview(unittest.TestCase):
@@ -227,7 +228,7 @@ class TestListReviews(unittest.TestCase):
         mock_git_client.return_value = mock_git
 
         mock_vcs = MagicMock()
-        reviews = [{"number": 1, "title": "Test"}]
+        reviews = [Review(number=1, title="Test", url="https://example.com/pulls/1")]
         mock_vcs.list_reviews.return_value = reviews
         mock_gitea_client.return_value = mock_vcs
 
