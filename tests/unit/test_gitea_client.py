@@ -5,6 +5,7 @@ from git import Repo
 
 from git_nearit.clients.base_vcs_client import PullRequest, Review
 from git_nearit.clients.gitea_client import GiteaAPIError, GiteaClient
+from git_nearit.models.git_repository import GitRepository
 from tests.base import GitRepoTestCase
 
 
@@ -423,6 +424,7 @@ class TestGiteaClientAPI(GitRepoTestCase):
         client = GiteaClient(Repo(self.repo_path), token="test-token")
         info = client.get_repository_info()
 
+        self.assertIsInstance(info, GitRepository)
         self.assertEqual(info.platform, "gitea")
         self.assertEqual(info.base_url, "https://example.com")
         self.assertEqual(info.hostname, "example.com")

@@ -5,7 +5,9 @@ from git import Repo
 
 from git_nearit.clients.base_vcs_client import PullRequest, Review
 from git_nearit.clients.gitlab_client import GitLabClient, GitlabAPIError
+from git_nearit.models.git_repository import GitRepository
 from tests.base import GitRepoTestCase
+
 
 
 class TestGitLabClientInit(GitRepoTestCase):
@@ -432,6 +434,7 @@ class TestGitLabClientAPI(GitRepoTestCase):
         client = GitLabClient(Repo(self.repo_path), token="test-token")
         info = client.get_repository_info()
 
+        self.assertIsInstance(info, GitRepository)
         self.assertEqual(info.platform, "gitlab")
         self.assertEqual(info.base_url, "https://example.com")
         self.assertEqual(info.hostname, "example.com")
