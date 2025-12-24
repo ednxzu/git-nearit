@@ -345,3 +345,98 @@ class TestGiteaClientAPI(GitRepoTestCase):
         self.assertEqual(len(reviews), 1)
         self.assertEqual(reviews[0].number, 2)
         self.assertEqual(reviews[0].title, "PR targeting develop")
+
+    @patch("git_nearit.clients.gitea_client.requests.request")
+    def test_request_exception_handling(self, mock_request):
+        from requests.exceptions import RequestException
+
+        mock_request.side_effect = RequestException("Network error")
+
+        client = GiteaClient(Repo(self.repo_path), token="test-token")
+
+        with self.assertRaises(GiteaAPIError) as context:
+            client.check_existing_review("feat/test", "main")
+
+        self.assertIn("Request failed", str(context.exception))
+
+    @patch("git_nearit.clients.gitea_client.requests.request")
+    def test_check_existing_review_generic_exception(self, mock_request):
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.content = True
+        mock_response.json.side_effect = ValueError("Invalid JSON")
+        mock_request.return_value = mock_response
+
+        client = GiteaClient(Repo(self.repo_path), token="test-token")
+
+        with self.assertRaises(GiteaAPIError) as context:
+            client.check_existing_review("feat/test", "main")
+
+        self.assertIn("Failed to check existing reviews", str(context.exception))
+
+    @patch("git_nearit.clients.gitea_client.requests.request")
+    def test_create_review_generic_exception(self, mock_request):
+        mock_response = MagicMock()
+        mock_response.status_code = 201
+        mock_response.content = True
+        mock_response.json.side_effect = KeyError("missing key")
+        mock_request.return_value = mock_response
+
+        client = GiteaClient(Repo(self.repo_path), token="test-token")
+
+        with self.assertRaises(GiteaAPIError) as context:
+            client.create_review("title", "desc", "branch", "main")
+
+        self.assertIn("Failed to create review", str(context.exception))
+
+    @patch("git_nearit.clients.gitea_client.requests.request")
+    def test_get_pull_request_generic_exception(self, mock_request):
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.content = True
+        mock_response.json.side_effect = KeyError("missing key")
+        mock_request.return_value = mock_response
+
+        client = GiteaClient(Repo(self.repo_path), token="test-token")
+
+        with self.assertRaises(GiteaAPIError) as context:
+            client.get_pull_request(42)
+
+        self.assertIn("Failed to get pull request", str(context.exception))
+
+    @patch("git_nearit.clients.gitea_client.requests.request")
+    def test_list_reviews_generic_exception(self, mock_request):
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.content = True
+        mock_response.json.side_effect = ValueError("Invalid data")
+        mock_request.return_value = mock_response
+
+        client = GiteaClient(Repo(self.repo_path), token="test-token")
+
+        with self.assertRaises(GiteaAPIError) as context:
+            client.list_reviews("main")
+
+        self.assertIn("Failed to list reviews", str(context.exception))
+
+    def test_get_repository_info(self):
+        client = GiteaClient(Repo(self.repo_path), token="test-token")
+        info = client.get_repository_info()
+
+        self.assertEqual(info["platform"], "gitea")
+        self.assertEqual(info["base_url"], "https://example.com")
+        self.assertEqual(info["hostname"], "example.com")
+        self.assertEqual(info["owner"], "test")
+        self.assertEqual(info["repo"], "repo")
+
+    @patch("git_nearit.clients.gitea_client.requests.request")
+    def test_make_request_returns_none_on_204(self, mock_request):
+        mock_response = MagicMock()
+        mock_response.status_code = 204
+        mock_response.content = False
+        mock_request.return_value = mock_response
+
+        client = GiteaClient(Repo(self.repo_path), token="test-token")
+        result = client._make_request("DELETE", "/test")
+
+        self.assertIsNone(result)

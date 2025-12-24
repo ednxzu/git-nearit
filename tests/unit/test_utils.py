@@ -1,9 +1,18 @@
 import unittest
 from datetime import datetime, timedelta, timezone
-from unittest.mock import patch
+from unittest.mock import MagicMock, mock_open, patch
 
 from git_nearit.clients.base_vcs_client import Review
-from git_nearit.utils import display_reviews_table, format_relative_time
+from git_nearit.utils import (
+    display_reviews_table,
+    edit_in_editor,
+    format_relative_time,
+    get_pr_description,
+    get_pr_title,
+    get_text_input,
+    select_from_menu,
+    setup_logging,
+)
 
 
 class TestFormatRelativeTime(unittest.TestCase):
@@ -111,4 +120,146 @@ class TestDisplayReviewsTable(unittest.TestCase):
         ]
 
         display_reviews_table(reviews, "main")
+        mock_console.print.assert_called_once()
+
+    @patch("git_nearit.utils.console")
+    def test_display_reviews_with_merged_state(self, mock_console) -> None:
+        reviews = [
+            Review(
+                number=1,
+                title="merged-pr",
+                url="https://example.com/pulls/1",
+                state="merged",
+            )
+        ]
+
+        display_reviews_table(reviews, "main")
+        mock_console.print.assert_called_once()
+
+    @patch("git_nearit.utils.console")
+    def test_display_reviews_with_unknown_state(self, mock_console) -> None:
+        reviews = [
+            Review(
+                number=1,
+                title="test-pr",
+                url="https://example.com/pulls/1",
+                state="pending",
+            )
+        ]
+
+        display_reviews_table(reviews, "main")
+        mock_console.print.assert_called_once()
+
+
+class TestSetupLogging(unittest.TestCase):
+    def test_setup_logging_creates_logger(self) -> None:
+        logger = setup_logging()
+        self.assertEqual(logger.name, "git-nearit")
+        self.assertEqual(logger.level, 20)
+        self.assertEqual(len(logger.handlers), 1)
+
+
+class TestSelectFromMenu(unittest.TestCase):
+    @patch("git_nearit.utils.questionary.select")
+    def test_select_from_menu_success(self, mock_select) -> None:
+        mock_select.return_value.ask.return_value = "option1"
+        result = select_from_menu("Choose:", ["option1", "option2"])
+        self.assertEqual(result, "option1")
+
+    @patch("git_nearit.utils.questionary.select")
+    @patch("git_nearit.utils.console")
+    def test_select_from_menu_cancelled(self, mock_console, mock_select) -> None:
+        mock_select.return_value.ask.return_value = None
+        with self.assertRaises(SystemExit) as cm:
+            select_from_menu("Choose:", ["option1", "option2"])
+        self.assertEqual(cm.exception.code, 1)
+        mock_console.print.assert_called_once()
+
+
+class TestGetTextInput(unittest.TestCase):
+    @patch("git_nearit.utils.questionary.text")
+    def test_get_text_input_success(self, mock_text) -> None:
+        mock_text.return_value.ask.return_value = "user input"
+        result = get_text_input("Enter text:")
+        self.assertEqual(result, "user input")
+
+    @patch("git_nearit.utils.questionary.text")
+    @patch("git_nearit.utils.console")
+    def test_get_text_input_cancelled(self, mock_console, mock_text) -> None:
+        mock_text.return_value.ask.return_value = None
+        with self.assertRaises(SystemExit) as cm:
+            get_text_input("Enter text:")
+        self.assertEqual(cm.exception.code, 1)
+        mock_console.print.assert_called_once()
+
+
+class TestEditInEditor(unittest.TestCase):
+    @patch("git_nearit.utils.subprocess.run")
+    @patch("git_nearit.utils.tempfile.NamedTemporaryFile")
+    @patch("git_nearit.utils.Path")
+    def test_edit_in_editor_basic(self, mock_path_class, mock_temp, mock_run) -> None:
+        mock_file = MagicMock()
+        mock_temp.return_value.__enter__.return_value = mock_file
+        mock_file.name = "/tmp/test.txt"
+
+        mock_path = MagicMock()
+        mock_path_class.return_value = mock_path
+        mock_path.read_text.return_value = (
+            "# ---- EDIT BELOW THIS LINE ----\n\nEdited content\n\n# ---- EDIT ABOVE THIS LINE ----"
+        )
+
+        result = edit_in_editor("initial content")
+
+        self.assertEqual(result, "Edited content")
+        mock_run.assert_called_once()
+        mock_path.unlink.assert_called_once()
+
+    @patch("git_nearit.utils.subprocess.run")
+    @patch("git_nearit.utils.tempfile.NamedTemporaryFile")
+    @patch("git_nearit.utils.Path")
+    def test_edit_in_editor_missing_markers(self, mock_path_class, mock_temp, mock_run) -> None:
+        mock_file = MagicMock()
+        mock_temp.return_value.__enter__.return_value = mock_file
+        mock_file.name = "/tmp/test.txt"
+
+        mock_path = MagicMock()
+        mock_path_class.return_value = mock_path
+        mock_path.read_text.return_value = "Content without markers"
+
+        result = edit_in_editor("initial")
+
+        self.assertEqual(result, "Content without markers")
+
+
+class TestGetPrTitle(unittest.TestCase):
+    @patch("git_nearit.utils.get_text_input")
+    @patch("git_nearit.utils.select_from_menu")
+    def test_get_pr_title(self, mock_select, mock_input) -> None:
+        mock_select.return_value = "feat"
+        mock_input.return_value = "new-feature"
+
+        result = get_pr_title()
+
+        self.assertEqual(result, "feat/new-feature")
+
+
+class TestGetPrDescription(unittest.TestCase):
+    @patch("git_nearit.utils.edit_in_editor")
+    def test_get_pr_description_success(self, mock_edit) -> None:
+        mock_edit.return_value = "PR description"
+
+        result = get_pr_description("commit subject", "commit body")
+
+        self.assertEqual(result, "PR description")
+        mock_edit.assert_called_once_with("commit subject\n\ncommit body")
+
+    @patch("git_nearit.utils.edit_in_editor")
+    @patch("git_nearit.utils.console")
+    def test_get_pr_description_empty(self, mock_console, mock_edit) -> None:
+        mock_edit.return_value = ""
+
+        with self.assertRaises(SystemExit) as cm:
+            get_pr_description("subject", "body")
+
+        self.assertEqual(cm.exception.code, 1)
         mock_console.print.assert_called_once()
