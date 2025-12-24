@@ -5,6 +5,7 @@ from git import Repo
 
 from git_nearit.clients.base_vcs_client import BaseVCSClient, PullRequest, Review
 from git_nearit.config import get_git_config
+from git_nearit.models.git_repository import GitRepository
 
 
 class GiteaAPIError(Exception):
@@ -136,14 +137,14 @@ class GiteaClient(BaseVCSClient):
         except Exception as e:
             raise GiteaAPIError(f"Failed to get pull request {pr_id}: {e}") from e
 
-    def get_repository_info(self) -> dict[str, str]:
-        return {
-            "platform": "gitea",
-            "base_url": self.base_url,
-            "hostname": self.hostname,
-            "owner": self.owner,
-            "repo": self.repo_name,
-        }
+    def get_repository_info(self) -> GitRepository:
+        return GitRepository(
+            platform="gitea",
+            base_url=self.base_url,
+            hostname=self.hostname,
+            owner=self.owner,
+            repo=self.repo_name,
+        )
 
     def list_reviews(self, base_branch: str, state: str = "open") -> list[Review]:
         route = f"/repos/{self.owner}/{self.repo_name}/pulls"

@@ -423,11 +423,11 @@ class TestGiteaClientAPI(GitRepoTestCase):
         client = GiteaClient(Repo(self.repo_path), token="test-token")
         info = client.get_repository_info()
 
-        self.assertEqual(info["platform"], "gitea")
-        self.assertEqual(info["base_url"], "https://example.com")
-        self.assertEqual(info["hostname"], "example.com")
-        self.assertEqual(info["owner"], "test")
-        self.assertEqual(info["repo"], "repo")
+        self.assertEqual(info.platform, "gitea")
+        self.assertEqual(info.base_url, "https://example.com")
+        self.assertEqual(info.hostname, "example.com")
+        self.assertEqual(info.owner, "test")
+        self.assertEqual(info.repo, "repo")
 
     @patch("git_nearit.clients.gitea_client.requests.request")
     def test_make_request_returns_none_on_204(self, mock_request):

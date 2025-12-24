@@ -5,6 +5,7 @@ from urllib.parse import urlparse
 
 from git import Repo
 
+from git_nearit.models.git_repository import GitRepository
 
 @dataclass
 class Review:
@@ -102,7 +103,7 @@ class BaseVCSClient(ABC):
         pass
 
     @abstractmethod
-    def get_repository_info(self) -> dict[str, str]:
+    def get_repository_info(self) -> GitRepository:
         pass
 
     @abstractmethod
