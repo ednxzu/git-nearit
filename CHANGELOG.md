@@ -1,3 +1,9 @@
+## v0.2.0 (2025-12-24)
+
+### Feat
+
+- **client/gitlab**: add gitlab client
+
 ## v0.1.0 (2025-12-22)
 
 ### Feat
