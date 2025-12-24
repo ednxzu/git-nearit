@@ -3,7 +3,7 @@ from typing import Optional
 import requests
 from git import Repo
 
-from git_nearit.clients.base_vcs_client import BaseVCSClient, Review
+from git_nearit.clients.base_vcs_client import BaseVCSClient, PullRequest, Review
 from git_nearit.config import get_git_config
 
 
@@ -120,12 +120,17 @@ class GiteaClient(BaseVCSClient):
         except Exception as e:
             raise GiteaAPIError(f"Failed to create review: {e}") from e
 
-    def get_pull_request(self, pr_id: int) -> dict:
+    def get_pull_request(self, pr_id: int) -> PullRequest:
         route = f"/repos/{self.owner}/{self.repo_name}/pulls/{pr_id}"
 
         try:
             result = self._make_request("GET", route)
-            return result
+            return PullRequest(
+                number=result["number"],
+                title=result["title"],
+                source_branch=result["head"]["ref"],
+                target_branch=result["base"]["ref"],
+            )
         except GiteaAPIError:
             raise
         except Exception as e:

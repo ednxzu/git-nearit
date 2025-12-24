@@ -117,20 +117,18 @@ def download_review(platform: str, pr_id: int) -> None:
             vcs_client = GitLabClient(git_client.repo)
 
         logger.info(f"Fetching pull request #{pr_id}...")
-        pr_data = vcs_client.get_pull_request(pr_id)
+        pr = vcs_client.get_pull_request(pr_id)
 
-        branch_name = pr_data.get("head", {}).get("ref")
-        if not branch_name:
+        if not pr.source_branch:
             logger.error(f"Could not determine branch name for PR #{pr_id}")
             sys.exit(1)
 
-        pr_title = pr_data.get("title", "Unknown")
-        logger.info(f"PR #{pr_id}: {pr_title}")
-        logger.info(f"Branch: {branch_name}")
+        logger.info(f"PR #{pr.number}: {pr.title}")
+        logger.info(f"Branch: {pr.source_branch}")
 
-        logger.info(f"Fetching and checking out branch {branch_name}...")
-        git_client.fetch_and_checkout_branch(branch_name)
-        logger.info(f"Successfully checked out branch: {branch_name}")
+        logger.info(f"Fetching and checking out branch {pr.source_branch}...")
+        git_client.fetch_and_checkout_branch(pr.source_branch)
+        logger.info(f"Successfully checked out branch: {pr.source_branch}")
 
     except ValueError as e:
         logger.error(str(e))

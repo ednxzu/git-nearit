@@ -3,7 +3,7 @@ from unittest.mock import MagicMock, patch
 
 from git import Repo
 
-from git_nearit.clients.base_vcs_client import Review
+from git_nearit.clients.base_vcs_client import PullRequest, Review
 from git_nearit.clients.gitea_client import GiteaAPIError, GiteaClient
 from tests.base import GitRepoTestCase
 
@@ -201,12 +201,14 @@ class TestGiteaClientAPI(GitRepoTestCase):
         mock_request.return_value = mock_response
 
         client = GiteaClient(Repo(self.repo_path), token="test-token")
-        pr_data = client.get_pull_request(42)
+        pr = client.get_pull_request(42)
 
-        self.assertEqual(pr_data["title"], "feat/test-feature")
-        self.assertEqual(pr_data["number"], 42)
-        self.assertEqual(pr_data["head"]["ref"], "change/20231215120000")
-        self.assertEqual(pr_data["base"]["ref"], "main")
+        # Type narrowing for type checker
+        assert isinstance(pr, PullRequest)
+        self.assertEqual(pr.title, "feat/test-feature")
+        self.assertEqual(pr.number, 42)
+        self.assertEqual(pr.source_branch, "change/20231215120000")
+        self.assertEqual(pr.target_branch, "main")
 
     @patch("git_nearit.clients.gitea_client.requests.request")
     def test_get_pull_request_not_found(self, mock_request):
