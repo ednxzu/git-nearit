@@ -12,7 +12,7 @@ from rich.console import Console
 from rich.logging import RichHandler
 from rich.table import Table
 
-from git_nearit.clients.base_vcs_client import Review
+from git_nearit.clients.models import ReviewListItem
 
 console = Console()
 
@@ -143,7 +143,7 @@ def format_relative_time(iso_timestamp: str) -> str:
         return iso_timestamp
 
 
-def display_reviews_table(reviews: list[Review], base_branch: str) -> None:
+def display_reviews_table(reviews: list[ReviewListItem], base_branch: str) -> None:
     if not reviews:
         console.print(f"[yellow]No open reviews found for branch '{base_branch}'[/yellow]")
         return

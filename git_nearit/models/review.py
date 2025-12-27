@@ -1,7 +1,8 @@
 from dataclasses import dataclass
 
+
 @dataclass
-class BaseReview:
+class Review:
     title: str
     url: str
     number: int

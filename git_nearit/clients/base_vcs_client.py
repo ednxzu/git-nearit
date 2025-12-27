@@ -1,31 +1,10 @@
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
 from typing import Optional
 from urllib.parse import urlparse
 
 from git import Repo
 
-from git_nearit.models.git_repository import GitRepository
-
-@dataclass
-class Review:
-    title: str
-    url: str
-    number: int
-    # Optional fields for list views
-    author: Optional[str] = None
-    state: Optional[str] = None
-    draft: Optional[bool] = None
-    created_at: Optional[str] = None
-    updated_at: Optional[str] = None
-
-
-@dataclass
-class PullRequest:
-    number: int
-    title: str
-    source_branch: str
-    target_branch: str
+from git_nearit.models import GitRepository, Review, ReviewListItem, ReviewDetail
 
 
 class BaseVCSClient(ABC):
@@ -99,7 +78,7 @@ class BaseVCSClient(ABC):
         pass
 
     @abstractmethod
-    def get_pull_request(self, pr_id: int) -> PullRequest:
+    def get_review(self, pr_id: int) -> ReviewDetail:
         pass
 
     @abstractmethod
@@ -107,5 +86,5 @@ class BaseVCSClient(ABC):
         pass
 
     @abstractmethod
-    def list_reviews(self, base_branch: str, state: str = "open") -> list[Review]:
+    def list_reviews(self, base_branch: str, state: str = "open") -> list[ReviewListItem]:
         pass

@@ -117,7 +117,7 @@ def download_review(platform: str, pr_id: int) -> None:
             vcs_client = GitLabClient(git_client.repo)
 
         logger.info(f"Fetching pull request #{pr_id}...")
-        pr = vcs_client.get_pull_request(pr_id)
+        pr = vcs_client.get_review(pr_id)
 
         if not pr.source_branch:
             logger.error(f"Could not determine branch name for PR #{pr_id}")

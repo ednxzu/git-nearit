@@ -3,9 +3,9 @@ from typing import Optional
 import requests
 from git import Repo
 
-from git_nearit.clients.base_vcs_client import BaseVCSClient, PullRequest, Review
+from git_nearit.clients.base_vcs_client import BaseVCSClient
 from git_nearit.config import get_git_config
-from git_nearit.models.git_repository import GitRepository
+from git_nearit.models import Review, GitRepository, ReviewListItem, ReviewDetail
 
 
 class GiteaAPIError(Exception):
@@ -80,9 +80,10 @@ class GiteaClient(BaseVCSClient):
 
     def check_existing_review(self, source_branch: str, target_branch: str) -> Optional[Review]:
         route = f"/repos/{self.owner}/{self.repo_name}/pulls"
+        params = {"state": "open"}
 
         try:
-            pulls = self._make_request("GET", route, params={"state": "open"})
+            pulls = self._make_request("GET", route, params=params)
 
             for pr in pulls:
                 if pr.get("head", {}).get("ref") == source_branch:
@@ -121,14 +122,15 @@ class GiteaClient(BaseVCSClient):
         except Exception as e:
             raise GiteaAPIError(f"Failed to create review: {e}") from e
 
-    def get_pull_request(self, pr_id: int) -> PullRequest:
+    def get_review(self, pr_id: int) -> ReviewDetail:
         route = f"/repos/{self.owner}/{self.repo_name}/pulls/{pr_id}"
 
         try:
             result = self._make_request("GET", route)
-            return PullRequest(
-                number=result["number"],
+            return ReviewDetail(
                 title=result["title"],
+                url=result["html_url"],
+                number=result["number"],
                 source_branch=result["head"]["ref"],
                 target_branch=result["base"]["ref"],
             )
@@ -146,7 +148,7 @@ class GiteaClient(BaseVCSClient):
             repo=self.repo_name,
         )
 
-    def list_reviews(self, base_branch: str, state: str = "open") -> list[Review]:
+    def list_reviews(self, base_branch: str, state: str = "open") -> list[ReviewListItem]:
         route = f"/repos/{self.owner}/{self.repo_name}/pulls"
 
         try:
@@ -158,7 +160,7 @@ class GiteaClient(BaseVCSClient):
 
             reviews = []
             for pr in pulls:
-                review = Review(
+                review = ReviewListItem(
                     title=pr.get("title", ""),
                     url=pr.get("html_url", ""),
                     number=pr.get("number", 0),

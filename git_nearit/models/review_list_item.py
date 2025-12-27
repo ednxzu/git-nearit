@@ -1,10 +1,10 @@
 from dataclasses import dataclass
 
-from git_nearit.models.base_review import BaseReview
+from git_nearit.models.review import Review
 
 
 @dataclass
-class ReviewSummary(BaseReview):
+class ReviewListItem(Review):
     author: str
     state: str
     draft: bool

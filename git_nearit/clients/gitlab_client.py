@@ -4,9 +4,9 @@ from urllib.parse import quote
 import requests
 from git import Repo
 
-from git_nearit.clients.base_vcs_client import BaseVCSClient, PullRequest, Review
+from git_nearit.clients.base_vcs_client import BaseVCSClient
 from git_nearit.config import get_git_config
-from git_nearit.models.git_repository import GitRepository
+from git_nearit.models import Review, GitRepository, ReviewListItem, ReviewDetail
 
 
 class GitlabAPIError(Exception):
@@ -122,14 +122,15 @@ class GitLabClient(BaseVCSClient):
         except Exception as e:
             raise GitlabAPIError(f"Failed to create review: {e}") from e
 
-    def get_pull_request(self, pr_id: int) -> PullRequest:
+    def get_review(self, pr_id: int) -> ReviewDetail:
         route = f"/projects/{self.project_id}/merge_requests/{pr_id}"
 
         try:
             result = self._make_request(method="GET", route=route)
-            return PullRequest(
-                number=pr_id,
+            return ReviewDetail(
                 title=result["title"],
+                url=result["web_url"],
+                number=pr_id,
                 source_branch=result["source_branch"],
                 target_branch=result["target_branch"],
             )
@@ -147,7 +148,7 @@ class GitLabClient(BaseVCSClient):
             repo=self.repo_name,
         )
 
-    def list_reviews(self, base_branch: str, state: str = "opened") -> list[Review]:
+    def list_reviews(self, base_branch: str, state: str = "opened") -> list[ReviewListItem]:
         route = f"/projects/{self.project_id}/merge_requests"
         params = {"state": state, "target_branch": base_branch}
 
@@ -158,7 +159,7 @@ class GitLabClient(BaseVCSClient):
 
             reviews = []
             for mr in merges:
-                review = Review(
+                review = ReviewListItem(
                     title=mr.get("title", ""),
                     url=mr.get("web_url", ""),
                     number=mr.get("iid", 0),
