@@ -10,7 +10,7 @@ repos:
       - id: trailing-whitespace
       - id: end-of-file-fixer
   - repo: https://github.com/commitizen-tools/commitizen
-    rev: v4.10.1
+    rev: v4.10.0
     hooks:
       - id: commitizen
       - id: commitizen-branch
@@ -21,7 +21,7 @@ repos:
       - id: uv-lock
         name: check uv lockfile
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.14.8
+    rev: v0.14.10
     hooks:
       - id: ruff
         args: [--fix]
