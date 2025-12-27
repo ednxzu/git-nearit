@@ -1,8 +1,8 @@
 import unittest
 from datetime import datetime, timedelta, timezone
-from unittest.mock import MagicMock, mock_open, patch
+from unittest.mock import MagicMock, patch
 
-from git_nearit.clients.base_vcs_client import Review
+from git_nearit.models import ReviewListItem
 from git_nearit.utils import (
     display_reviews_table,
     edit_in_editor,
@@ -80,7 +80,7 @@ class TestDisplayReviewsTable(unittest.TestCase):
     @patch("git_nearit.utils.console")
     def test_display_reviews_with_data(self, mock_console) -> None:
         reviews = [
-            Review(
+            ReviewListItem(
                 number=1,
                 title="feat/test-feature",
                 url="https://example.com/pulls/1",
@@ -90,7 +90,7 @@ class TestDisplayReviewsTable(unittest.TestCase):
                 created_at="2025-12-22T10:00:00Z",
                 updated_at="2025-12-22T12:00:00Z",
             ),
-            Review(
+            ReviewListItem(
                 number=2,
                 title="This is a very long title that should be truncated because it exceeds the maximum length",
                 url="https://example.com/pulls/2",
@@ -112,10 +112,15 @@ class TestDisplayReviewsTable(unittest.TestCase):
     @patch("git_nearit.utils.console")
     def test_display_reviews_with_missing_fields(self, mock_console) -> None:
         reviews = [
-            Review(
+            ReviewListItem(
                 number=1,
                 title="minimal-review",
                 url="https://example.com/pulls/1",
+                author="",
+                state="",
+                draft=False,
+                created_at="",
+                updated_at="",
             )
         ]
 
@@ -125,11 +130,15 @@ class TestDisplayReviewsTable(unittest.TestCase):
     @patch("git_nearit.utils.console")
     def test_display_reviews_with_merged_state(self, mock_console) -> None:
         reviews = [
-            Review(
+            ReviewListItem(
                 number=1,
                 title="merged-pr",
                 url="https://example.com/pulls/1",
+                author="testuser",
                 state="merged",
+                draft=False,
+                created_at="2025-12-22T10:00:00Z",
+                updated_at="2025-12-22T10:00:00Z",
             )
         ]
 
@@ -139,11 +148,15 @@ class TestDisplayReviewsTable(unittest.TestCase):
     @patch("git_nearit.utils.console")
     def test_display_reviews_with_unknown_state(self, mock_console) -> None:
         reviews = [
-            Review(
+            ReviewListItem(
                 number=1,
                 title="test-pr",
                 url="https://example.com/pulls/1",
+                author="testuser",
                 state="pending",
+                draft=False,
+                created_at="2025-12-22T10:00:00Z",
+                updated_at="2025-12-22T10:00:00Z",
             )
         ]
 

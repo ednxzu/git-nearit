@@ -2,7 +2,7 @@ import unittest
 from unittest.mock import MagicMock, patch
 
 from git_nearit.cli import download_review, list_reviews, run_review
-from git_nearit.clients.base_vcs_client import PullRequest, Review
+from git_nearit.models import Review, ReviewDetail
 
 
 class TestRunReview(unittest.TestCase):
@@ -137,9 +137,10 @@ class TestDownloadReview(unittest.TestCase):
         mock_git_client.return_value = mock_git
 
         mock_vcs = MagicMock()
-        mock_vcs.get_pull_request.return_value = PullRequest(
+        mock_vcs.get_review.return_value = ReviewDetail(
             number=42,
             title="Test PR",
+            url="https://example.com/pulls/42",
             source_branch="feature/test-branch",
             target_branch="main",
         )
@@ -147,7 +148,7 @@ class TestDownloadReview(unittest.TestCase):
 
         download_review("gitea", 42)
 
-        mock_vcs.get_pull_request.assert_called_once_with(42)
+        mock_vcs.get_review.assert_called_once_with(42)
         mock_git.fetch_and_checkout_branch.assert_called_once_with("feature/test-branch")
 
     @patch("git_nearit.cli.setup_logging")
@@ -179,9 +180,10 @@ class TestDownloadReview(unittest.TestCase):
         mock_git_client.return_value = mock_git
 
         mock_vcs = MagicMock()
-        mock_vcs.get_pull_request.return_value = PullRequest(
+        mock_vcs.get_review.return_value = ReviewDetail(
             number=42,
             title="Test PR",
+            url="https://example.com/pulls/42",
             source_branch="",  # Empty branch name
             target_branch="main",
         )

@@ -3,7 +3,7 @@ from unittest.mock import MagicMock, patch
 
 from git import Repo
 
-from git_nearit.clients.base_vcs_client import PullRequest, Review
+from git_nearit.models import Review, ReviewDetail
 from git_nearit.clients.gitea_client import GiteaAPIError, GiteaClient
 from git_nearit.models.git_repository import GitRepository
 from tests.base import GitRepoTestCase
@@ -188,7 +188,7 @@ class TestGiteaClientAPI(GitRepoTestCase):
         self.assertIn("HTTP 404", str(context.exception))
 
     @patch("git_nearit.clients.gitea_client.requests.request")
-    def test_get_pull_request(self, mock_request):
+    def test_get_review(self, mock_request):
         mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.content = True
@@ -202,17 +202,17 @@ class TestGiteaClientAPI(GitRepoTestCase):
         mock_request.return_value = mock_response
 
         client = GiteaClient(Repo(self.repo_path), token="test-token")
-        pr = client.get_pull_request(42)
+        pr = client.get_review(42)
 
         # Type narrowing for type checker
-        assert isinstance(pr, PullRequest)
+        assert isinstance(pr, ReviewDetail)
         self.assertEqual(pr.title, "feat/test-feature")
         self.assertEqual(pr.number, 42)
         self.assertEqual(pr.source_branch, "change/20231215120000")
         self.assertEqual(pr.target_branch, "main")
 
     @patch("git_nearit.clients.gitea_client.requests.request")
-    def test_get_pull_request_not_found(self, mock_request):
+    def test_get_review_not_found(self, mock_request):
         mock_response = MagicMock()
         mock_response.status_code = 404
         mock_response.text = "Pull request not found"
@@ -227,7 +227,7 @@ class TestGiteaClientAPI(GitRepoTestCase):
         client = GiteaClient(Repo(self.repo_path), token="test-token")
 
         with self.assertRaises(GiteaAPIError) as context:
-            client.get_pull_request(999)
+            client.get_review(999)
 
         self.assertIn("HTTP 404", str(context.exception))
 
@@ -391,7 +391,7 @@ class TestGiteaClientAPI(GitRepoTestCase):
         self.assertIn("Failed to create review", str(context.exception))
 
     @patch("git_nearit.clients.gitea_client.requests.request")
-    def test_get_pull_request_generic_exception(self, mock_request):
+    def test_get_review_generic_exception(self, mock_request):
         mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.content = True
@@ -401,7 +401,7 @@ class TestGiteaClientAPI(GitRepoTestCase):
         client = GiteaClient(Repo(self.repo_path), token="test-token")
 
         with self.assertRaises(GiteaAPIError) as context:
-            client.get_pull_request(42)
+            client.get_review(42)
 
         self.assertIn("Failed to get pull request", str(context.exception))
 
