@@ -1,3 +1,12 @@
+## v0.3.0 (2025-12-27)
+
+### Feat
+
+- **cli**: add hyperlink to review page on listing
+- **models**: introduce new data structures for consistency in clients
+- **models**: improve datastructures for review objects
+- **models**: introduce GitRepository datastructure for high level objects
+
 ## v0.2.0 (2025-12-24)
 
 ### Feat
