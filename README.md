@@ -10,7 +10,7 @@ A streamlined Git review workflow tool for **Gitea** and **GitLab**, inspired by
 
 - One-command review submission
 - Download and checkout pull requests locally
-- List active review for a repository
+- List active reviews for a repository
 
 ## Why use it?
 
@@ -29,7 +29,7 @@ git push -u origin feature/my-change
 **With git-nearit:**
 ```bash
 git add .
-# yes, on the main branch ! Or the branch you want to submit to
+# yes, on the main branch! Or the branch you want to submit to
 git commit -m "fix: improve performance"
 git tea-review
 # That's it! Branch created, pushed, and PR opened
@@ -42,23 +42,10 @@ git tea-review
 - Git
 - [uv](https://github.com/astral-sh/uv) (recommended) or pip
 
-### Using uv (recommended)
-
 ```bash
 git clone https://github.com/yourusername/git-nearit.git
 cd git-nearit
-uv venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-uv sync
-uv pip install -e .
-```
-
-### Using pip
-
-```bash
-git clone https://github.com/yourusername/git-nearit.git
-cd git-nearit
-pip install -e .
+uv sync  # or: pip install -e .
 ```
 
 ## Configuration
@@ -126,148 +113,49 @@ git lab-review
 git lab-review develop
 ```
 
-**Workflow:**
-1. Ensures no uncommitted changes to tracked files
-2. Creates a `change/YYYYMMDDHHmmss` branch if on main
-3. Pushes with `--force-with-lease` and `--set-upstream`
-4. Prompts for PR title and description
-5. Creates the pull/merge request
+Creates timestamped `change/YYYYMMDDHHmmss` branches when submitting from main, prompts for title/description, and opens the PR automatically.
 
 ### Download a review
 
-Want to review someone's PR locally?
-
 ```bash
-# Download and checkout PR #42
-git tea-review -d 42
-
-# For GitLab
-git lab-review -d 42
+git tea-review -d 42    # Gitea
+git lab-review -d 42    # GitLab
 ```
 
-This fetches the PR's branch and checks it out locally, ready for review.
+### List active reviews
 
-## How it works
-
-### Branch naming
-
-`git-nearit` creates timestamped branches in the format `change/YYYYMMDDHHmmss`:
-- Ensures uniqueness
-- Easy to identify when changes were made
-- Sorts chronologically
-
-### Safe pushing
-
-Uses `git push --force-with-lease` instead of `--force`:
-- Prevents accidentally overwriting others' work
-- Only force-pushes if your local ref matches the remote
-- Safer for collaborative workflows
-
-### Main branch detection
-
-Automatically detects your repository's main branch:
-1. Checks `origin/HEAD` symbolic ref
-2. Falls back to `master` if not set
-
-You can also specify a target branch explicitly with `git tea-review <branch>`.
+```bash
+git tea-review -l       # List reviews for main branch
+git tea-review -l develop  # List for specific branch
+```
 
 ## Development
-
-### Setup
 
 ```bash
 git clone https://github.com/yourusername/git-nearit.git
 cd git-nearit
-uv venv
-source .venv/bin/activate
 uv sync --all-extras
-```
-
-### Running tests
-
-```bash
-# All tests
-uv run pytest
-
-# With coverage
-uv run pytest --cov=git_nearit --cov-report=term-missing
-
-# Specific test file
-uv run pytest tests/unit/test_git_client.py -v
-```
-
-### Code quality
-
-```bash
-# Format code
-uv run ruff format
-
-# Lint
-uv run ruff check
-
-# Fix auto-fixable issues
-uv run ruff check --fix
-```
-
-### Project structure
-
-```
-git-nearit/
-├── git_nearit/
-│   ├── cli.py                  # CLI entry points and workflow
-│   ├── config.py               # Git config parsing
-│   ├── utils.py                # UI utilities (prompts, editor)
-│   └── clients/
-│       ├── git_client.py       # Local Git operations
-│       ├── gitea_client.py     # Gitea API client
-│       ├── gitlab_client.py    # GitLab API client (WIP)
-│       └── base_vcs_client.py  # Abstract base class
-├── tests/
-│   ├── base.py                 # Test utilities
-│   └── unit/                   # Unit tests
-└── pyproject.toml              # Project configuration
+uv run pytest -xvs
 ```
 
 ## Troubleshooting
 
-### "No Gitea token found"
-
-Make sure you've configured your token for the specific hostname:
-```bash
-git config nearit.gitea.YOUR_HOSTNAME.token YOUR_TOKEN
-```
-
-### "You have uncommitted changes"
-
-`git-nearit` prevents running with uncommitted changes to tracked files (untracked files are fine):
-```bash
-# Commit your changes
-git add . && git commit -m "Your message"
-
-# Or stash them
-git stash
-```
-
-### "Not a git repository"
-
-Run the command from inside a Git repository:
-```bash
-cd /path/to/your/repo
-git tea-review
-```
+- **"No token found"**: Configure token for your hostname: `git config nearit.gitea.YOUR_HOSTNAME.token YOUR_TOKEN`
+- **"Uncommitted changes"**: Commit or stash tracked file changes (untracked files are fine)
+- **"Not a git repository"**: Run from inside a git repository
 
 ## Roadmap
 
 - [x] Gitea support
 - [x] Download PR for review/edit (`-d` flag)
-- [ ] Complete GitLab client implementation
+- [x] Complete GitLab client implementation
 - [ ] GitHub support
 - [ ] Interactive rebase workflow
 - [ ] Draft PR support
 
 ## License
 
-[Your license here]
+MIT
 
 ## Contributing
 
