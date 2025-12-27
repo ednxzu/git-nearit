@@ -12,7 +12,7 @@ from rich.console import Console
 from rich.logging import RichHandler
 from rich.table import Table
 
-from git_nearit.clients.models import ReviewListItem
+from git_nearit.models import ReviewListItem
 
 console = Console()
 
@@ -164,6 +164,10 @@ def display_reviews_table(reviews: list[ReviewListItem], base_branch: str) -> No
         title = review.title or ""
         if len(title) > 47:
             title = title[:44] + "..."
+
+        # Add hyperlink to title if URL is available
+        if review.url:
+            title = f"[link={review.url}]{title}[/link]"
 
         author = review.author or "unknown"
         state = review.state or "unknown"
