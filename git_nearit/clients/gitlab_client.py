@@ -100,9 +100,18 @@ class GitLabClient(BaseVCSClient):
             raise GitlabAPIError(f"Failed to check existing reviews: {e}") from e
 
     def create_review(
-        self, title: str, description: str, source_branch: str, target_branch: str
+        self,
+        title: str,
+        description: str,
+        source_branch: str,
+        target_branch: str,
+        wip: bool = False,
     ) -> Review:
         route = f"/projects/{self.project_id}/merge_requests"
+
+        if wip:
+            title = f"[Draft] {title}"
+
         data = {
             "title": title,
             "description": description,

@@ -168,6 +168,34 @@ class TestGiteaClientAPI(GitRepoTestCase):
         self.assertEqual(review.number, 2)
 
     @patch("git_nearit.clients.gitea_client.requests.request")
+    def test_create_review_with_wip(self, mock_request):
+        mock_response = MagicMock()
+        mock_response.status_code = 201
+        mock_response.content = True
+        mock_response.json.return_value = {
+            "title": "WIP: feat/new-feature",
+            "html_url": "https://example.com/test/repo/pulls/3",
+            "number": 3,
+        }
+        mock_request.return_value = mock_response
+
+        client = GiteaClient(Repo(self.repo_path), token="test-token")
+        review = client.create_review(
+            "feat/new-feature", "Description here", "feat/branch", "main", wip=True
+        )
+
+        # Type narrowing for type checker, rather than self.assertIsInstance(review, Review)
+        assert isinstance(review, Review)
+        self.assertEqual(review.title, "WIP: feat/new-feature")
+        self.assertEqual(review.url, "https://example.com/test/repo/pulls/3")
+        self.assertEqual(review.number, 3)
+
+        # Verify the API was called with the WIP prefix
+        call_args = mock_request.call_args
+        json_data = call_args[1]["json"]
+        self.assertEqual(json_data["title"], "WIP: feat/new-feature")
+
+    @patch("git_nearit.clients.gitea_client.requests.request")
     def test_api_error_handling(self, mock_request):
         mock_response = MagicMock()
         mock_response.status_code = 404

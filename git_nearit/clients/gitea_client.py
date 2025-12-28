@@ -100,9 +100,18 @@ class GiteaClient(BaseVCSClient):
             raise GiteaAPIError(f"Failed to check existing reviews: {e}") from e
 
     def create_review(
-        self, title: str, description: str, source_branch: str, target_branch: str
+        self,
+        title: str,
+        description: str,
+        source_branch: str,
+        target_branch: str,
+        wip: bool = False,
     ) -> Review:
         route = f"/repos/{self.owner}/{self.repo_name}/pulls"
+
+        if wip:
+            title = f"WIP: {title}"
+
         data = {
             "title": title,
             "body": description,

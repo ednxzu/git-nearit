@@ -73,7 +73,12 @@ class BaseVCSClient(ABC):
 
     @abstractmethod
     def create_review(
-        self, title: str, description: str, source_branch: str, target_branch: str
+        self,
+        title: str,
+        description: str,
+        source_branch: str,
+        target_branch: str,
+        wip: bool = False,
     ) -> Review:
         pass
 

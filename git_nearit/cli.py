@@ -7,7 +7,7 @@ from git_nearit.clients.gitlab_client import GitLabClient
 from git_nearit.utils import display_reviews_table, get_pr_description, get_pr_title, setup_logging
 
 
-def run_review(platform: str, target_branch: Optional[str] = None) -> None:
+def run_review(platform: str, target_branch: Optional[str] = None, wip: bool = False) -> None:
     logger = setup_logging()
 
     try:
@@ -83,8 +83,11 @@ def run_review(platform: str, target_branch: Optional[str] = None) -> None:
         subject, body = git_client.get_last_commit_message()
         description = get_pr_description(subject, body)
 
-        logger.info("Creating review...")
-        review = vcs_client.create_review(title, description, branch_name, target)
+        if wip:
+            logger.info("Creating review as draft...")
+        else:
+            logger.info("Creating review...")
+        review = vcs_client.create_review(title, description, branch_name, target, wip)
         logger.info("Review created successfully!")
         logger.info(f"URL: {review.url}")
 

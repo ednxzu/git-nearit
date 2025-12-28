@@ -20,12 +20,21 @@ from git_nearit.cli import download_review, list_reviews, run_review
     is_flag=True,
     help="List open pull requests (optionally for TARGET_BRANCH)",
 )
+@click.option(
+    "-w",
+    "--wip",
+    is_flag=True,
+    help="Create pull request as draft (adds 'WIP:' prefix to title)",
+)
 def tea_review(
     target_branch: Optional[str],
     download: Optional[int],
     list: bool,
+    wip: bool,
 ) -> None:
-    handle_review(backend="gitea", target_branch=target_branch, download=download, list=list)
+    handle_review(
+        backend="gitea", target_branch=target_branch, download=download, list=list, wip=wip
+    )
 
 
 @click.command()
@@ -43,12 +52,21 @@ def tea_review(
     is_flag=True,
     help="List open merge requests (optionally for TARGET_BRANCH)",
 )
+@click.option(
+    "-w",
+    "--wip",
+    is_flag=True,
+    help="Create merge request as draft (adds '[Draft]' prefix to title)",
+)
 def lab_review(
     target_branch: Optional[str],
     download: Optional[int],
     list: bool,
+    wip: bool,
 ) -> None:
-    handle_review(backend="gitlab", target_branch=target_branch, download=download, list=list)
+    handle_review(
+        backend="gitlab", target_branch=target_branch, download=download, list=list, wip=wip
+    )
 
 
 def handle_review(
@@ -56,6 +74,7 @@ def handle_review(
     target_branch: Optional[str],
     download: Optional[int],
     list: bool,
+    wip: bool,
 ) -> None:
     download_mode: bool = download is not None
     list_mode: bool = list
@@ -67,9 +86,12 @@ def handle_review(
     if download_mode and target_branch is not None:
         raise click.UsageError("--download cannot be used with TARGET_BRANCH")
 
+    if wip and not submit_mode:
+        raise click.UsageError("--wip can only be used in submit mode")
+
     if download_mode and isinstance(download, int):
         download_review(backend, download)
     elif list_mode:
         list_reviews(backend, target_branch)
     else:
-        run_review(backend, target_branch)
+        run_review(backend, target_branch, wip)
