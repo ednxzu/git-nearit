@@ -1,3 +1,9 @@
+## v0.4.0 (2025-12-28)
+
+### Feat
+
+- **cli**: add wip flag to create draft reviews
+
 ## v0.3.0 (2025-12-27)
 
 ### Feat
