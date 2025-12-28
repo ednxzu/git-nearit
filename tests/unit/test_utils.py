@@ -174,36 +174,50 @@ class TestSetupLogging(unittest.TestCase):
 
 class TestSelectFromMenu(unittest.TestCase):
     @patch("git_nearit.utils.questionary.select")
-    def test_select_from_menu_success(self, mock_select) -> None:
+    @patch("git_nearit.utils.logging.getLogger")
+    def test_select_from_menu_success(self, mock_get_logger, mock_select) -> None:
+        mock_logger = MagicMock()
+        mock_get_logger.return_value = mock_logger
         mock_select.return_value.ask.return_value = "option1"
         result = select_from_menu("Choose:", ["option1", "option2"])
         self.assertEqual(result, "option1")
+        # Verify logging calls
+        mock_logger.info.assert_any_call("Choose:")
+        mock_logger.info.assert_any_call("Selected: option1")
 
     @patch("git_nearit.utils.questionary.select")
-    @patch("git_nearit.utils.console")
-    def test_select_from_menu_cancelled(self, mock_console, mock_select) -> None:
+    @patch("git_nearit.utils.logging.getLogger")
+    def test_select_from_menu_cancelled(self, mock_get_logger, mock_select) -> None:
+        mock_logger = MagicMock()
+        mock_get_logger.return_value = mock_logger
         mock_select.return_value.ask.return_value = None
         with self.assertRaises(SystemExit) as cm:
             select_from_menu("Choose:", ["option1", "option2"])
         self.assertEqual(cm.exception.code, 1)
-        mock_console.print.assert_called_once()
+        mock_logger.error.assert_called_once_with("Selection cancelled")
 
 
 class TestGetTextInput(unittest.TestCase):
     @patch("git_nearit.utils.questionary.text")
-    def test_get_text_input_success(self, mock_text) -> None:
+    @patch("git_nearit.utils.logging.getLogger")
+    def test_get_text_input_success(self, mock_get_logger, mock_text) -> None:
+        mock_logger = MagicMock()
+        mock_get_logger.return_value = mock_logger
         mock_text.return_value.ask.return_value = "user input"
         result = get_text_input("Enter text:")
         self.assertEqual(result, "user input")
+        mock_logger.info.assert_called_with("Enter text:")
 
     @patch("git_nearit.utils.questionary.text")
-    @patch("git_nearit.utils.console")
-    def test_get_text_input_cancelled(self, mock_console, mock_text) -> None:
+    @patch("git_nearit.utils.logging.getLogger")
+    def test_get_text_input_cancelled(self, mock_get_logger, mock_text) -> None:
+        mock_logger = MagicMock()
+        mock_get_logger.return_value = mock_logger
         mock_text.return_value.ask.return_value = None
         with self.assertRaises(SystemExit) as cm:
             get_text_input("Enter text:")
         self.assertEqual(cm.exception.code, 1)
-        mock_console.print.assert_called_once()
+        mock_logger.error.assert_called_once_with("Input cancelled")
 
 
 class TestEditInEditor(unittest.TestCase):

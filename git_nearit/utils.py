@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Callable, Optional
 
 import questionary
+from questionary import Style
 from rich.console import Console
 from rich.logging import RichHandler
 from rich.table import Table
@@ -15,6 +16,21 @@ from rich.table import Table
 from git_nearit.models import ReviewListItem
 
 console = Console()
+
+custom_style = Style(
+    [
+        ("qmark", ""),
+        ("question", "bold"),
+        ("answer", ""),
+        ("pointer", ""),
+        ("highlighted", "bold cyan"),
+        ("selected", ""),
+        ("separator", ""),
+        ("instruction", ""),
+        ("text", ""),
+        ("disabled", "fg:#858585 italic"),
+    ]
+)
 
 
 def setup_logging() -> logging.Logger:
@@ -38,17 +54,33 @@ def setup_logging() -> logging.Logger:
 
 
 def select_from_menu(prompt: str, choices: list[str]) -> str:
-    result = questionary.select(prompt, choices=choices).ask()
+    logger = logging.getLogger("git-nearit")
+    logger.info(prompt)
+    result = questionary.select(
+        message="",
+        choices=choices,
+        style=custom_style,
+        qmark="",
+        use_shortcuts=True,
+    ).ask()
     if result is None:
-        console.print("[ERROR] Selection cancelled", style="bold red")
+        logger.error("Selection cancelled")
         sys.exit(1)
+    logger.info(f"Selected: {result}")
     return result
 
 
 def get_text_input(prompt: str, validate: Optional[Callable] = None) -> str:
-    result = questionary.text(prompt, validate=validate).ask()
+    logger = logging.getLogger("git-nearit")
+    logger.info(prompt)
+    result = questionary.text(
+        message="> ",
+        validate=validate,
+        style=custom_style,
+        qmark="",
+    ).ask()
     if result is None:
-        console.print("[ERROR] Input cancelled", style="bold red")
+        logger.error("Input cancelled")
         sys.exit(1)
     return result
 
