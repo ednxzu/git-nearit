@@ -121,6 +121,70 @@ class TestRunReview(unittest.TestCase):
 
         mock_vcs.create_review.assert_not_called()
 
+    @patch("git_nearit.cli.setup_logging")
+    @patch("git_nearit.cli.GiteaClient")
+    @patch("git_nearit.cli.GitClient")
+    def test_run_review_updates_existing_review_to_draft(
+        self, mock_git_client, mock_gitea_client, mock_logging
+    ):
+        """Test that --wip flag updates existing review to draft."""
+        mock_logger = MagicMock()
+        mock_logging.return_value = mock_logger
+
+        mock_git = MagicMock()
+        mock_git.has_uncommitted_changes.return_value = False
+        mock_git.get_main_branch.return_value = "main"
+        mock_git.get_current_branch.return_value = "change/test"
+        mock_git.is_on_main_branch.return_value = False
+        mock_git_client.return_value = mock_git
+
+        mock_vcs = MagicMock()
+        existing_review = Review(
+            title="Existing PR",
+            url="https://example.com/pulls/1",
+            number=1,
+        )
+        mock_vcs.check_existing_review.return_value = existing_review
+        mock_gitea_client.return_value = mock_vcs
+
+        run_review("gitea", None, wip=True, ready=False)
+
+        # Should call update_review_status with draft=True
+        mock_vcs.update_review_status.assert_called_once_with(review=existing_review, draft=True)
+        mock_vcs.create_review.assert_not_called()
+
+    @patch("git_nearit.cli.setup_logging")
+    @patch("git_nearit.cli.GiteaClient")
+    @patch("git_nearit.cli.GitClient")
+    def test_run_review_updates_existing_review_to_ready(
+        self, mock_git_client, mock_gitea_client, mock_logging
+    ):
+        """Test that --ready flag updates existing review to ready."""
+        mock_logger = MagicMock()
+        mock_logging.return_value = mock_logger
+
+        mock_git = MagicMock()
+        mock_git.has_uncommitted_changes.return_value = False
+        mock_git.get_main_branch.return_value = "main"
+        mock_git.get_current_branch.return_value = "change/test"
+        mock_git.is_on_main_branch.return_value = False
+        mock_git_client.return_value = mock_git
+
+        mock_vcs = MagicMock()
+        existing_review = Review(
+            title="WIP: Existing PR",
+            url="https://example.com/pulls/1",
+            number=1,
+        )
+        mock_vcs.check_existing_review.return_value = existing_review
+        mock_gitea_client.return_value = mock_vcs
+
+        run_review("gitea", None, wip=False, ready=True)
+
+        # Should call update_review_status with draft=False
+        mock_vcs.update_review_status.assert_called_once_with(review=existing_review, draft=False)
+        mock_vcs.create_review.assert_not_called()
+
 
 class TestDownloadReview(unittest.TestCase):
     @patch("git_nearit.cli.setup_logging")
