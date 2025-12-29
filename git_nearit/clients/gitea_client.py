@@ -48,6 +48,7 @@ class GiteaClient(BaseVCSClient):
             "Authorization": f"token {self.token}",
             "Content-Type": "application/json",
         }
+        self.draft_prefix = "WIP: "
 
     def _make_request(self, method: str, route: str, json_data: Optional[dict] = None, **kwargs):
         url = f"{self.api_url}{route}"
@@ -105,12 +106,12 @@ class GiteaClient(BaseVCSClient):
         description: str,
         source_branch: str,
         target_branch: str,
-        wip: bool = False,
+        draft: bool = False,
     ) -> Review:
         route = f"/repos/{self.owner}/{self.repo_name}/pulls"
 
-        if wip:
-            title = f"WIP: {title}"
+        if draft:
+            title = self._add_prefix(text=title, prefix=self.draft_prefix)
 
         data = {
             "title": title,
@@ -130,6 +131,35 @@ class GiteaClient(BaseVCSClient):
             raise
         except Exception as e:
             raise GiteaAPIError(f"Failed to create review: {e}") from e
+
+    def update_review_status(self, review: Review, draft: bool) -> Review:
+        route = f"/repos/{self.owner}/{self.repo_name}/pulls/{review.number}"
+
+        try:
+            current_title = review.title
+            current_draft = current_title.startswith("WIP: ")
+
+            if draft == current_draft:
+                return review
+
+            new_title = current_title
+
+            if draft:
+                new_title = self._add_prefix(text=new_title, prefix=self.draft_prefix)
+            else:
+                new_title = self._remove_prefix(text=new_title, prefix=self.draft_prefix)
+
+            update_data = {"title": new_title}
+            result = self._make_request("PATCH", route, json_data=update_data)
+            return Review(
+                title=result["title"],
+                url=result["html_url"],
+                number=result["number"],
+            )
+        except GiteaAPIError:
+            raise
+        except Exception as e:
+            raise GiteaAPIError(f"Failed to update pull request {review.number}: {e}") from e
 
     def get_review(self, pr_id: int) -> ReviewDetail:
         route = f"/repos/{self.owner}/{self.repo_name}/pulls/{pr_id}"

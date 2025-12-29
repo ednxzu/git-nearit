@@ -26,14 +26,26 @@ from git_nearit.cli import download_review, list_reviews, run_review
     is_flag=True,
     help="Create pull request as draft (adds 'WIP:' prefix to title)",
 )
+@click.option(
+    "-r",
+    "--ready",
+    is_flag=True,
+    help="Create pull request as ready (removes 'WIP:' prefix to title)",
+)
 def tea_review(
     target_branch: Optional[str],
     download: Optional[int],
     list: bool,
     wip: bool,
+    ready: bool,
 ) -> None:
     handle_review(
-        backend="gitea", target_branch=target_branch, download=download, list=list, wip=wip
+        backend="gitea",
+        target_branch=target_branch,
+        download=download,
+        list=list,
+        wip=wip,
+        ready=ready,
     )
 
 
@@ -58,14 +70,26 @@ def tea_review(
     is_flag=True,
     help="Create merge request as draft (adds '[Draft]' prefix to title)",
 )
+@click.option(
+    "-r",
+    "--ready",
+    is_flag=True,
+    help="Create merge request as ready (removes '[Draft]' prefix to title)",
+)
 def lab_review(
     target_branch: Optional[str],
     download: Optional[int],
     list: bool,
     wip: bool,
+    ready: bool,
 ) -> None:
     handle_review(
-        backend="gitlab", target_branch=target_branch, download=download, list=list, wip=wip
+        backend="gitlab",
+        target_branch=target_branch,
+        download=download,
+        list=list,
+        wip=wip,
+        ready=ready,
     )
 
 
@@ -75,6 +99,7 @@ def handle_review(
     download: Optional[int],
     list: bool,
     wip: bool,
+    ready: bool,
 ) -> None:
     download_mode: bool = download is not None
     list_mode: bool = list
@@ -89,9 +114,15 @@ def handle_review(
     if wip and not submit_mode:
         raise click.UsageError("--wip can only be used in submit mode")
 
+    if ready and not submit_mode:
+        raise click.UsageError("--ready can only be used in submit mode")
+
+    if ready and wip:
+        raise click.UsageError("--ready and --wip are mutually exclusive flags")
+
     if download_mode and isinstance(download, int):
         download_review(backend, download)
     elif list_mode:
         list_reviews(backend, target_branch)
     else:
-        run_review(backend, target_branch, wip)
+        run_review(backend, target_branch, wip, ready)

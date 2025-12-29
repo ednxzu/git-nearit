@@ -51,6 +51,7 @@ class GitLabClient(BaseVCSClient):
             "Authorization": f"Bearer {self.token}",
             "Content-Type": "application/json",
         }
+        self.draft_prefix = "[Draft] "
 
     def _make_request(self, method: str, route: str, json_data: Optional[dict] = None, **kwargs):
         url = f"{self.api_url}{route}"
@@ -105,12 +106,12 @@ class GitLabClient(BaseVCSClient):
         description: str,
         source_branch: str,
         target_branch: str,
-        wip: bool = False,
+        draft: bool = False,
     ) -> Review:
         route = f"/projects/{self.project_id}/merge_requests"
 
-        if wip:
-            title = f"[Draft] {title}"
+        if draft:
+            title = self._add_prefix(text=title, prefix=self.draft_prefix)
 
         data = {
             "title": title,
@@ -130,6 +131,35 @@ class GitLabClient(BaseVCSClient):
             raise
         except Exception as e:
             raise GitlabAPIError(f"Failed to create review: {e}") from e
+
+    def update_review_status(self, review: Review, draft: bool) -> Review:
+        route = f"/projects/{self.project_id}/merge_requests/{review.number}"
+
+        try:
+            current_title = review.title
+            current_draft = current_title.startswith("[Draft] ")
+
+            if draft == current_draft:
+                return review
+
+            new_title = current_title
+
+            if draft:
+                new_title = self._add_prefix(text=new_title, prefix=self.draft_prefix)
+            else:
+                new_title = self._remove_prefix(text=new_title, prefix=self.draft_prefix)
+
+            update_data = {"title": new_title}
+            result = self._make_request(method="PUT", route=route, json_data=update_data)
+            return Review(
+                title=result["title"],
+                url=result["web_url"],
+                number=result["iid"],
+            )
+        except GitlabAPIError:
+            raise
+        except Exception as e:
+            raise GitlabAPIError(f"Failed to update merge request {review.number}: {e}") from e
 
     def get_review(self, pr_id: int) -> ReviewDetail:
         route = f"/projects/{self.project_id}/merge_requests/{pr_id}"

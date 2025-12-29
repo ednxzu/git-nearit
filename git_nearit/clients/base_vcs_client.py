@@ -67,6 +67,16 @@ class BaseVCSClient(ABC):
             "full_path": full_path,
         }
 
+    def _remove_prefix(self, text: str, prefix: str) -> str:
+        if text.startswith(prefix):
+            return text[len(prefix) :]
+        return text
+
+    def _add_prefix(self, text: str, prefix: str) -> str:
+        if not text.startswith(prefix):
+            return f"{prefix}{text}"
+        return text
+
     @abstractmethod
     def check_existing_review(self, source_branch: str, target_branch: str) -> Optional[Review]:
         pass
@@ -78,8 +88,12 @@ class BaseVCSClient(ABC):
         description: str,
         source_branch: str,
         target_branch: str,
-        wip: bool = False,
+        draft: bool = False,
     ) -> Review:
+        pass
+
+    @abstractmethod
+    def update_review_status(self, review: Review, draft: bool) -> Review:
         pass
 
     @abstractmethod

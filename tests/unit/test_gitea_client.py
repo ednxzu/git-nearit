@@ -181,7 +181,7 @@ class TestGiteaClientAPI(GitRepoTestCase):
 
         client = GiteaClient(Repo(self.repo_path), token="test-token")
         review = client.create_review(
-            "feat/new-feature", "Description here", "feat/branch", "main", wip=True
+            "feat/new-feature", "Description here", "feat/branch", "main", draft=True
         )
 
         # Type narrowing for type checker, rather than self.assertIsInstance(review, Review)
@@ -470,3 +470,101 @@ class TestGiteaClientAPI(GitRepoTestCase):
         result = client._make_request("DELETE", "/test")
 
         self.assertIsNone(result)
+
+    @patch("git_nearit.clients.gitea_client.requests.request")
+    def test_update_review_status_set_draft(self, mock_request):
+        # Mock PATCH (update)
+        patch_response = MagicMock()
+        patch_response.status_code = 200
+        patch_response.content = True
+        patch_response.json.return_value = {
+            "title": "WIP: feat/test-feature",
+            "html_url": "https://example.com/test/repo/pulls/42",
+            "number": 42,
+        }
+
+        mock_request.return_value = patch_response
+
+        client = GiteaClient(Repo(self.repo_path), token="test-token")
+        existing_review = Review(
+            title="feat/test-feature",
+            url="https://example.com/test/repo/pulls/42",
+            number=42,
+        )
+        result = client.update_review_status(existing_review, draft=True)
+
+        self.assertEqual(result.title, "WIP: feat/test-feature")
+        self.assertEqual(result.number, 42)
+
+        # Verify PATCH was called with correct data
+        self.assertEqual(mock_request.call_count, 1)
+        patch_call = mock_request.call_args
+        self.assertEqual(patch_call.kwargs["method"], "PATCH")
+        self.assertEqual(patch_call.kwargs["json"]["title"], "WIP: feat/test-feature")
+
+    @patch("git_nearit.clients.gitea_client.requests.request")
+    def test_update_review_status_unset_draft(self, mock_request):
+        # Mock PATCH (update)
+        patch_response = MagicMock()
+        patch_response.status_code = 200
+        patch_response.content = True
+        patch_response.json.return_value = {
+            "title": "feat/test-feature",
+            "html_url": "https://example.com/test/repo/pulls/42",
+            "number": 42,
+        }
+
+        mock_request.return_value = patch_response
+
+        client = GiteaClient(Repo(self.repo_path), token="test-token")
+        existing_review = Review(
+            title="WIP: feat/test-feature",
+            url="https://example.com/test/repo/pulls/42",
+            number=42,
+        )
+        result = client.update_review_status(existing_review, draft=False)
+
+        self.assertEqual(result.title, "feat/test-feature")
+        # Verify WIP prefix was removed
+        patch_call = mock_request.call_args
+        self.assertEqual(patch_call.kwargs["json"]["title"], "feat/test-feature")
+
+    @patch("git_nearit.clients.gitea_client.requests.request")
+    def test_update_review_status_no_changes(self, mock_request):
+        client = GiteaClient(Repo(self.repo_path), token="test-token")
+        existing_review = Review(
+            title="WIP: feat/test-feature",
+            url="https://example.com/test/repo/pulls/42",
+            number=42,
+        )
+        result = client.update_review_status(existing_review, draft=True)  # Already draft
+
+        # Should not make any API calls
+        self.assertEqual(mock_request.call_count, 0)
+        self.assertEqual(result.title, "WIP: feat/test-feature")
+        self.assertEqual(result, existing_review)  # Should return same object
+
+    @patch("git_nearit.clients.gitea_client.requests.request")
+    def test_update_review_status_error_handling(self, mock_request):
+        from requests.exceptions import HTTPError
+
+        mock_response = MagicMock()
+        mock_response.status_code = 404
+        mock_response.text = "Pull request not found"
+        mock_response.raise_for_status.side_effect = Exception("HTTP 404")
+
+        http_error = HTTPError()
+        http_error.response = mock_response
+        mock_request.side_effect = http_error
+
+        client = GiteaClient(Repo(self.repo_path), token="test-token")
+        existing_review = Review(
+            title="feat/test-feature",
+            url="https://example.com/test/repo/pulls/999",
+            number=999,
+        )
+
+        with self.assertRaises(GiteaAPIError) as context:
+            client.update_review_status(existing_review, draft=True)
+
+        self.assertIn("HTTP 404", str(context.exception))

@@ -7,7 +7,9 @@ from git_nearit.clients.gitlab_client import GitLabClient
 from git_nearit.utils import display_reviews_table, get_pr_description, get_pr_title, setup_logging
 
 
-def run_review(platform: str, target_branch: Optional[str] = None, wip: bool = False) -> None:
+def run_review(
+    platform: str, target_branch: Optional[str] = None, wip: bool = False, ready: bool = False
+) -> None:
     logger = setup_logging()
 
     try:
@@ -73,7 +75,13 @@ def run_review(platform: str, target_branch: Optional[str] = None, wip: bool = F
         if existing_review:
             logger.info(f"Review already exists: {existing_review.title}")
             logger.info(f"URL: {existing_review.url}")
-            return
+            if not wip and not ready:
+                return
+            else:
+                logger.info("Updating review state...")
+                vcs_client.update_review_status(review=existing_review, draft=wip)
+                logger.info("Review status updated successfully!")
+                return
 
         logger.info("No existing review found, creating new one")
 
@@ -86,8 +94,14 @@ def run_review(platform: str, target_branch: Optional[str] = None, wip: bool = F
         if wip:
             logger.info("Creating review as draft...")
         else:
-            logger.info("Creating review...")
-        review = vcs_client.create_review(title, description, branch_name, target, wip)
+            logger.info("Creating review as ready...")
+        review = vcs_client.create_review(
+            title=title,
+            description=description,
+            source_branch=branch_name,
+            target_branch=target,
+            draft=wip,
+        )
         logger.info("Review created successfully!")
         logger.info(f"URL: {review.url}")
 
