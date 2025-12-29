@@ -78,3 +78,45 @@ class TestGetGitConfig(unittest.TestCase):
         result = get_git_config("some.number")
 
         self.assertEqual(result, "123")
+
+    def test_get_from_repo_config(self) -> None:
+        """Test that when repo is provided, it uses repo.config_reader()"""
+        mock_repo = MagicMock()
+        mock_config_reader = MagicMock()
+        mock_config_reader.get_value.return_value = "repo-token"
+        mock_repo.config_reader.return_value = mock_config_reader
+
+        result = get_git_config("nearit.gitea.example.com.token", repo=mock_repo)
+
+        self.assertEqual(result, "repo-token")
+        mock_repo.config_reader.assert_called_once()
+        mock_config_reader.get_value.assert_called_once_with(
+            'nearit "gitea.example.com"', "token", default=""
+        )
+
+    @patch("git_nearit.config.GitConfigParser")
+    def test_get_without_repo_uses_global_config(self, mock_parser_class) -> None:
+        """Test that when repo is None, it uses GitConfigParser (global config)"""
+        mock_parser = MagicMock()
+        mock_parser.get_value.return_value = "global-token"
+        mock_parser_class.return_value = mock_parser
+
+        result = get_git_config("nearit.gitea.example.com.token", repo=None)
+
+        self.assertEqual(result, "global-token")
+        mock_parser_class.assert_called_once()
+        mock_parser.get_value.assert_called_once_with(
+            'nearit "gitea.example.com"', "token", default=""
+        )
+
+    def test_repo_config_with_env_variable(self) -> None:
+        """Test that env() syntax works with repo config"""
+        mock_repo = MagicMock()
+        mock_config_reader = MagicMock()
+        mock_config_reader.get_value.return_value = "env(REPO_TOKEN)"
+        mock_repo.config_reader.return_value = mock_config_reader
+
+        with patch.dict(os.environ, {"REPO_TOKEN": "my-repo-token"}):
+            result = get_git_config("nearit.token", repo=mock_repo)
+
+        self.assertEqual(result, "my-repo-token")
