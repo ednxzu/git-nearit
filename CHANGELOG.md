@@ -1,3 +1,13 @@
+## v0.5.0 (2025-12-29)
+
+### Feat
+
+- **cli**: improve cli output
+
+### Fix
+
+- **cli**: improve cli output
+
 ## v0.4.0 (2025-12-28)
 
 ### Feat
