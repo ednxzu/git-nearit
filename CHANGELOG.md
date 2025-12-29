@@ -1,3 +1,13 @@
+## v0.6.0 (2025-12-29)
+
+### Feat
+
+- add flag for setting and updating review status
+
+### Fix
+
+- **gitclient**: read repo git config properly before falling back to main config
+
 ## v0.5.0 (2025-12-29)
 
 ### Feat
