@@ -41,6 +41,8 @@ class TestGiteaClientURLParsing(unittest.TestCase):
     def test_parse_ssh_url(self):
         mock_repo = MagicMock()
         mock_repo.remote.return_value.url = "git@github.com:owner/repo.git"
+        # Mock config_reader to return empty string (fallback to base_url from repo info)
+        mock_repo.config_reader.return_value.get_value.return_value = ""
 
         client = GiteaClient(mock_repo, token="test-token")
 
@@ -52,6 +54,8 @@ class TestGiteaClientURLParsing(unittest.TestCase):
     def test_parse_https_url(self):
         mock_repo = MagicMock()
         mock_repo.remote.return_value.url = "https://gitlab.com/owner/repo.git"
+        # Mock config_reader to return empty string (fallback to base_url from repo info)
+        mock_repo.config_reader.return_value.get_value.return_value = ""
 
         client = GiteaClient(mock_repo, token="test-token")
 
@@ -63,6 +67,8 @@ class TestGiteaClientURLParsing(unittest.TestCase):
     def test_parse_ssh_scheme_url_with_port(self):
         mock_repo = MagicMock()
         mock_repo.remote.return_value.url = "ssh://git@git.example.com:5022/owner/repo.git"
+        # Mock config_reader to return empty string (fallback to base_url from repo info)
+        mock_repo.config_reader.return_value.get_value.return_value = ""
 
         client = GiteaClient(mock_repo, token="test-token")
 

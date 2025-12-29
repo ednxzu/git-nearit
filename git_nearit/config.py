@@ -1,12 +1,17 @@
 import os
 import re
+from typing import Optional
 
-from git import GitConfigParser
+from git import GitConfigParser, Repo
 
 
-def get_git_config(key: str, default: str = "") -> str:
+def get_git_config(key: str, default: str = "", repo: Optional[Repo] = None) -> str:
     try:
-        config = GitConfigParser()
+        if repo:
+            config = repo.config_reader()
+        else:
+            config = GitConfigParser()
+
         section, option = _parse_config_key(key)
 
         value = config.get_value(section, option, default=default)

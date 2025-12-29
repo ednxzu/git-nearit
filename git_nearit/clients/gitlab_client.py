@@ -28,14 +28,14 @@ class GitLabClient(BaseVCSClient):
             self.base_url = base_url
         else:
             url_config_key = f"nearit.gitlab.{self.hostname}.url"
-            custom_url = get_git_config(url_config_key)
+            custom_url = get_git_config(url_config_key, repo=self.repo)
             self.base_url = custom_url if custom_url else repo_info["base_url"]
 
         if token:
             self.token = token
         else:
             config_key = f"nearit.gitlab.{self.hostname}.token"
-            self.token = get_git_config(config_key)
+            self.token = get_git_config(config_key, repo=self.repo)
 
             if not self.token:
                 raise ValueError(
