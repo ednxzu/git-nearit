@@ -45,7 +45,11 @@ git tea-review
 ```bash
 git clone https://github.com/yourusername/git-nearit.git
 cd git-nearit
-uv sync  # or: pip install -e .
+# if using uv
+uv sync
+uv tool install . -e
+# if using pip
+pip install -e .
 ```
 
 ## Configuration
