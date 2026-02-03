@@ -51,6 +51,7 @@ class GitLabClient(BaseVCSClient):
             "Authorization": f"Bearer {self.token}",
             "Content-Type": "application/json",
         }
+        self.verify_ssl = self._get_ssl_verify(repo)
         self.draft_prefix = "[Draft] "
 
     def _make_request(self, method: str, route: str, json_data: Optional[dict] = None, **kwargs):
@@ -63,6 +64,7 @@ class GitLabClient(BaseVCSClient):
                 headers=self.headers,
                 json=json_data,
                 timeout=30,
+                verify=self.verify_ssl,
                 **kwargs,
             )
             response.raise_for_status()
