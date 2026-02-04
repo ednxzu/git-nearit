@@ -1,9 +1,3 @@
-## v0.6.1 (2026-02-04)
-
-### Fix
-
-- change publishing index for gitlab-migration
-
 ## v0.6.0 (2025-12-29)
 
 ### Feat
