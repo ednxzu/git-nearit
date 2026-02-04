@@ -12,5 +12,6 @@ include:
         - "3.13"
       uv_sync_groups: test
       coverage_threshold: 70
+      coverage_omit: tests/*
       rules:
         - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME =~ /^master|main$/'
