@@ -1,0 +1,16 @@
+---
+# yaml-language-server: $schema=https://gitlab.com/gitlab-org/gitlab/-/raw/master/app/assets/javascripts/editor/schema/ci.json
+include:
+  - project: ednz-cloud/gitlab-ci-library
+    ref: main
+    file: includes/pytest.yml
+    inputs:
+      stage: unit-tests
+      python_versions:
+        - "3.11"
+        - "3.12"
+        - "3.13"
+      uv_sync_groups: test
+      coverage_threshold: 70
+      rules:
+        - if: '$CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME =~ /^master|main$/'
