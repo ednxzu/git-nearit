@@ -5,9 +5,11 @@ stages:
   - unit-tests
   - release:pre
   - release
+  - publish
 
 include:
   - local: .gitlab-ci/workflows/gate-commit-check.yml
   - local: .gitlab-ci/workflows/gate-pre-commit.yml
   - local: .gitlab-ci/workflows/merge-request.yml
   - local: .gitlab-ci/workflows/release.yml
+  - local: .gitlab-ci/workflows/publish.yml
