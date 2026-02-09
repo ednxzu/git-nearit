@@ -39,6 +39,105 @@ class TestGitLabClientInit(GitRepoTestCase):
         self.assertEqual(client.api_url, "https://custom.gitlab.com:8443/api/v4")
 
 
+class TestGitLabClientSSLVerify(unittest.TestCase):
+    def test_ssl_verify_defaults_to_true(self):
+        mock_repo = MagicMock()
+        mock_repo.remote.return_value.url = "https://gitlab.com/owner/repo.git"
+        mock_repo.config_reader.return_value.get_value.return_value = ""
+
+        client = GitLabClient(mock_repo, token="test-token")
+
+        self.assertTrue(client.verify_ssl)
+
+    def test_ssl_verify_false_when_configured(self):
+        mock_repo = MagicMock()
+        mock_repo.remote.return_value.url = "https://gitlab.com/owner/repo.git"
+
+        def mock_get_value(section, option, default=""):
+            if option == "sslVerify":
+                return "false"
+            return default
+
+        mock_repo.config_reader.return_value.get_value.side_effect = mock_get_value
+
+        client = GitLabClient(mock_repo, token="test-token")
+
+        self.assertFalse(client.verify_ssl)
+
+    @patch("git_nearit.clients.gitlab_client.requests.request")
+    def test_ssl_verify_passed_to_requests(self, mock_request):
+        mock_repo = MagicMock()
+        mock_repo.remote.return_value.url = "https://gitlab.com/owner/repo.git"
+
+        def mock_get_value(section, option, default=""):
+            if option == "sslVerify":
+                return "false"
+            return default
+
+        mock_repo.config_reader.return_value.get_value.side_effect = mock_get_value
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.content = True
+        mock_response.json.return_value = []
+        mock_request.return_value = mock_response
+
+        client = GitLabClient(mock_repo, token="test-token")
+        client.check_existing_review("branch", "main")
+
+        call_kwargs = mock_request.call_args[1]
+        self.assertFalse(call_kwargs["verify"])
+
+
+class TestGitLabClientSubpath(unittest.TestCase):
+    def test_subpath_stripped_from_full_path(self):
+        mock_repo = MagicMock()
+        mock_repo.remote.return_value.url = (
+            "https://forge.example.com/gitlab/group/subgroup/repo.git"
+        )
+
+        def mock_get_value(section, option, default=""):
+            if option == "url":
+                return "https://forge.example.com/gitlab"
+            return default
+
+        mock_repo.config_reader.return_value.get_value.side_effect = mock_get_value
+
+        client = GitLabClient(mock_repo, token="test-token")
+
+        self.assertEqual(client.base_url, "https://forge.example.com/gitlab")
+        self.assertEqual(client.api_url, "https://forge.example.com/gitlab/api/v4")
+        self.assertEqual(client.full_path, "group/subgroup/repo")
+        self.assertEqual(client.project_id, "group%2Fsubgroup%2Frepo")
+        self.assertEqual(client.owner, "group/subgroup")
+        self.assertEqual(client.repo_name, "repo")
+
+    def test_no_subpath_leaves_full_path_unchanged(self):
+        mock_repo = MagicMock()
+        mock_repo.remote.return_value.url = "https://gitlab.com/owner/repo.git"
+        mock_repo.config_reader.return_value.get_value.return_value = ""
+
+        client = GitLabClient(mock_repo, token="test-token")
+
+        self.assertEqual(client.full_path, "owner/repo")
+        self.assertEqual(client.project_id, "owner%2Frepo")
+        self.assertEqual(client.owner, "owner")
+
+    def test_subpath_with_base_url_param(self):
+        mock_repo = MagicMock()
+        mock_repo.remote.return_value.url = "https://forge.example.com/gitlab/team/project/repo.git"
+        mock_repo.config_reader.return_value.get_value.return_value = ""
+
+        client = GitLabClient(
+            mock_repo,
+            token="test-token",
+            base_url="https://forge.example.com/gitlab",
+        )
+
+        self.assertEqual(client.full_path, "team/project/repo")
+        self.assertEqual(client.owner, "team/project")
+
+
 class TestGitLabClientURLParsing(unittest.TestCase):
     def test_parse_ssh_url(self):
         mock_repo = MagicMock()

@@ -86,10 +86,42 @@ export GITLAB_TOKEN="your-token-here"
 
 ### Custom base URLs
 
-If your Gitea/GitLab instance uses a custom URL:
+If your Gitea/GitLab instance uses a custom URL or is hosted behind a subpath (e.g. `https://forge.example.com/gitlab`):
 
 ```bash
+# Custom port
 git config nearit.gitea.git.example.com.url https://git.example.com:8443
+
+# Instance behind a subpath
+git config nearit.gitlab.forge.example.com.url https://forge.example.com/gitlab
+```
+
+When a subpath is configured, `git-nearit` automatically strips it from the project path to build correct API routes.
+
+### SSL verification
+
+`git-nearit` respects the standard git `http.sslVerify` setting. If your instance uses a self-signed certificate, you can disable SSL verification:
+
+```bash
+git config http.sslVerify false
+```
+
+This can also be scoped to a specific git directory using `includeIf`:
+
+```gitconfig
+# ~/.gitconfig
+[includeIf "gitdir:~/git/work/"]
+    path = .gitconfig-work
+```
+
+```gitconfig
+# ~/.gitconfig-work
+[http]
+    sslVerify = false
+
+[nearit "gitlab.forge.example.com"]
+    token = YOUR_TOKEN
+    url = https://forge.example.com/gitlab
 ```
 
 ## Usage
@@ -143,6 +175,8 @@ uv run pytest -xvs
 - **"No token found"**: Configure token for your hostname: `git config nearit.gitea.YOUR_HOSTNAME.token YOUR_TOKEN`
 - **"Uncommitted changes"**: Commit or stash tracked file changes (untracked files are fine)
 - **"Not a git repository"**: Run from inside a git repository
+- **SSL certificate errors**: Set `git config http.sslVerify false` (see [SSL verification](#ssl-verification))
+- **404 on API calls**: If your instance is behind a subpath (e.g. `/gitlab`), configure the full URL: `git config nearit.gitlab.YOUR_HOSTNAME.url https://YOUR_HOSTNAME/gitlab` (see [Custom base URLs](#custom-base-urls))
 
 ## Roadmap
 
