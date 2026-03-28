@@ -1,5 +1,5 @@
 from typing import Optional
-from urllib.parse import quote
+from urllib.parse import quote, urlparse
 
 import requests
 from git import Repo
@@ -22,7 +22,6 @@ class GitLabClient(BaseVCSClient):
         self.owner = repo_info["owner"]
         self.repo_name = repo_info["repo"]
         self.full_path = repo_info["full_path"]
-        self.project_id = quote(self.full_path, safe="")
 
         if base_url:
             self.base_url = base_url
@@ -30,6 +29,15 @@ class GitLabClient(BaseVCSClient):
             url_config_key = f"nearit.gitlab.{self.hostname}.url"
             custom_url = get_git_config(url_config_key, repo=self.repo)
             self.base_url = custom_url if custom_url else repo_info["base_url"]
+
+        # Strip base URL subpath from full_path (e.g. /gitlab prefix)
+        base_path = urlparse(self.base_url).path.strip("/")
+        if base_path and self.full_path.startswith(f"{base_path}/"):
+            self.full_path = self.full_path[len(base_path) + 1:]
+            path_parts = self.full_path.split("/")
+            self.owner = "/".join(path_parts[:-1])
+
+        self.project_id = quote(self.full_path, safe="")
 
         if token:
             self.token = token
@@ -51,6 +59,7 @@ class GitLabClient(BaseVCSClient):
             "Authorization": f"Bearer {self.token}",
             "Content-Type": "application/json",
         }
+        self.verify_ssl = self._get_ssl_verify(repo)
         self.draft_prefix = "[Draft] "
 
     def _make_request(self, method: str, route: str, json_data: Optional[dict] = None, **kwargs):
@@ -63,6 +72,7 @@ class GitLabClient(BaseVCSClient):
                 headers=self.headers,
                 json=json_data,
                 timeout=30,
+                verify=self.verify_ssl,
                 **kwargs,
             )
             response.raise_for_status()
