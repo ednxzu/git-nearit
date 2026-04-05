@@ -10,6 +10,7 @@ include:
         - "3.11"
         - "3.12"
         - "3.13"
+        - "3.14"
       uv_sync_groups: test
       coverage_threshold: 70
       rules:

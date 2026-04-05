@@ -3,7 +3,7 @@ name = "git-nearit"
 version = "0.6.1"
 description = "Git review tool for Gitea and GitLab, mimicking gerrit's git-review workflow"
 readme = "README.md"
-requires-python = ">=3.11,<3.14"
+requires-python = ">=3.11,<3.15"
 dependencies = [
   "click>=8.0.0",
   "gitpython>=3.1.45",
