@@ -37,6 +37,99 @@ class TestGiteaClientInit(GitRepoTestCase):
         self.assertEqual(client.api_url, "https://custom.example.com:8443/api/v1")
 
 
+class TestGiteaClientSSLVerify(unittest.TestCase):
+    def test_ssl_verify_defaults_to_true(self):
+        mock_repo = MagicMock()
+        mock_repo.remote.return_value.url = "https://git.example.com/owner/repo.git"
+        mock_repo.config_reader.return_value.get_value.return_value = ""
+
+        client = GiteaClient(mock_repo, token="test-token")
+
+        self.assertTrue(client.verify_ssl)
+
+    def test_ssl_verify_false_when_configured(self):
+        mock_repo = MagicMock()
+        mock_repo.remote.return_value.url = "https://git.example.com/owner/repo.git"
+
+        def mock_get_value(section, option, default=""):
+            if option == "sslVerify":
+                return "false"
+            return default
+
+        mock_repo.config_reader.return_value.get_value.side_effect = mock_get_value
+
+        client = GiteaClient(mock_repo, token="test-token")
+
+        self.assertFalse(client.verify_ssl)
+
+    @patch("git_nearit.clients.gitea_client.requests.request")
+    def test_ssl_verify_passed_to_requests(self, mock_request):
+        mock_repo = MagicMock()
+        mock_repo.remote.return_value.url = "https://git.example.com/owner/repo.git"
+
+        def mock_get_value(section, option, default=""):
+            if option == "sslVerify":
+                return "false"
+            return default
+
+        mock_repo.config_reader.return_value.get_value.side_effect = mock_get_value
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.content = True
+        mock_response.json.return_value = []
+        mock_request.return_value = mock_response
+
+        client = GiteaClient(mock_repo, token="test-token")
+        client.check_existing_review("branch", "main")
+
+        call_kwargs = mock_request.call_args[1]
+        self.assertFalse(call_kwargs["verify"])
+
+
+class TestGiteaClientSubpath(unittest.TestCase):
+    def test_subpath_stripped_from_owner(self):
+        mock_repo = MagicMock()
+        mock_repo.remote.return_value.url = "https://forge.example.com/gitea/owner/repo.git"
+
+        def mock_get_value(section, option, default=""):
+            if option == "url":
+                return "https://forge.example.com/gitea"
+            return default
+
+        mock_repo.config_reader.return_value.get_value.side_effect = mock_get_value
+
+        client = GiteaClient(mock_repo, token="test-token")
+
+        self.assertEqual(client.base_url, "https://forge.example.com/gitea")
+        self.assertEqual(client.api_url, "https://forge.example.com/gitea/api/v1")
+        self.assertEqual(client.owner, "owner")
+        self.assertEqual(client.repo_name, "repo")
+
+    def test_no_subpath_leaves_owner_unchanged(self):
+        mock_repo = MagicMock()
+        mock_repo.remote.return_value.url = "https://git.example.com/owner/repo.git"
+        mock_repo.config_reader.return_value.get_value.return_value = ""
+
+        client = GiteaClient(mock_repo, token="test-token")
+
+        self.assertEqual(client.owner, "owner")
+
+    def test_subpath_with_base_url_param(self):
+        mock_repo = MagicMock()
+        mock_repo.remote.return_value.url = "https://forge.example.com/gitea/team/repo.git"
+        mock_repo.config_reader.return_value.get_value.return_value = ""
+
+        client = GiteaClient(
+            mock_repo,
+            token="test-token",
+            base_url="https://forge.example.com/gitea",
+        )
+
+        self.assertEqual(client.owner, "team")
+        self.assertEqual(client.repo_name, "repo")
+
+
 class TestGiteaClientURLParsing(unittest.TestCase):
     def test_parse_ssh_url(self):
         mock_repo = MagicMock()

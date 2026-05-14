@@ -4,10 +4,20 @@ from urllib.parse import urlparse
 
 from git import Repo
 
+from git_nearit.config import get_git_config
 from git_nearit.models import GitRepository, Review, ReviewListItem, ReviewDetail
 
 
 class BaseVCSClient(ABC):
+    def _get_ssl_verify(self, repo: Repo) -> bool:
+        ssl_verify = get_git_config("http.sslVerify", default="true", repo=repo)
+        verify = ssl_verify.lower() != "false"
+        if not verify:
+            import urllib3
+
+            urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+        return verify
+
     def _parse_remote_url(self, repo: Repo) -> dict[str, str]:
         try:
             remote_url = repo.remote("origin").url
