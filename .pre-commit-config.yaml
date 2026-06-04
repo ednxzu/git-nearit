@@ -10,7 +10,7 @@ repos:
       - id: trailing-whitespace
       - id: end-of-file-fixer
   - repo: https://github.com/commitizen-tools/commitizen
-    rev: v4.16.2
+    rev: v4.16.3
     hooks:
       - id: commitizen
       - id: commitizen-branch
