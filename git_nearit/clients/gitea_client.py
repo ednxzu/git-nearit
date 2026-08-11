@@ -1,4 +1,5 @@
 from typing import Optional
+from urllib.parse import urlparse
 
 import requests
 from git import Repo
@@ -28,6 +29,11 @@ class GiteaClient(BaseVCSClient):
             custom_url = get_git_config(url_config_key, repo=self.repo)
             self.base_url = custom_url if custom_url else repo_info["base_url"]
 
+        # Strip base URL subpath from owner (e.g. /gitea prefix)
+        base_path = urlparse(self.base_url).path.strip("/")
+        if base_path and self.owner.startswith(f"{base_path}/"):
+            self.owner = self.owner[len(base_path) + 1:]
+
         if token:
             self.token = token
         else:
@@ -48,6 +54,7 @@ class GiteaClient(BaseVCSClient):
             "Authorization": f"token {self.token}",
             "Content-Type": "application/json",
         }
+        self.verify_ssl = self._get_ssl_verify(repo)
         self.draft_prefix = "WIP: "
 
     def _make_request(self, method: str, route: str, json_data: Optional[dict] = None, **kwargs):
@@ -60,6 +67,7 @@ class GiteaClient(BaseVCSClient):
                 headers=self.headers,
                 json=json_data,
                 timeout=30,
+                verify=self.verify_ssl,
                 **kwargs,
             )
             response.raise_for_status()
