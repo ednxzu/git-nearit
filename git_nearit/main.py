@@ -1,5 +1,3 @@
-from typing import Optional
-
 import click
 
 from git_nearit.cli import download_review, list_reviews, run_review
@@ -33,8 +31,8 @@ from git_nearit.cli import download_review, list_reviews, run_review
     help="Create pull request as ready (removes 'WIP:' prefix to title)",
 )
 def tea_review(
-    target_branch: Optional[str],
-    download: Optional[int],
+    target_branch: str | None,
+    download: int | None,
     list: bool,
     wip: bool,
     ready: bool,
@@ -77,8 +75,8 @@ def tea_review(
     help="Create merge request as ready (removes '[Draft]' prefix to title)",
 )
 def lab_review(
-    target_branch: Optional[str],
-    download: Optional[int],
+    target_branch: str | None,
+    download: int | None,
     list: bool,
     wip: bool,
     ready: bool,
@@ -95,8 +93,8 @@ def lab_review(
 
 def handle_review(
     backend: str,
-    target_branch: Optional[str],
-    download: Optional[int],
+    target_branch: str | None,
+    download: int | None,
     list: bool,
     wip: bool,
     ready: bool,

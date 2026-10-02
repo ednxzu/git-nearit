@@ -1,6 +1,5 @@
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Optional
 
 from git import Repo
 from git.exc import GitCommandError
@@ -9,7 +8,7 @@ from git.exc import GitCommandError
 class GitClient:
     """Handle local git repository operations."""
 
-    def __init__(self, repo_path: Optional[Path] = None):
+    def __init__(self, repo_path: Path | None = None):
         self.repo_path = repo_path or Path.cwd()
         try:
             self.repo = Repo(self.repo_path, search_parent_directories=True)
@@ -31,7 +30,7 @@ class GitClient:
         return self.get_current_branch() == self.get_main_branch()
 
     def create_change_branch(self) -> str:
-        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+        timestamp = datetime.now(UTC).strftime("%Y%m%d%H%M%S")
         branch_name = f"change/{timestamp}"
 
         self.repo.git.checkout("-b", branch_name)

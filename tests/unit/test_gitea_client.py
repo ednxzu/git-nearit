@@ -3,8 +3,8 @@ from unittest.mock import MagicMock, patch
 
 from git import Repo
 
-from git_nearit.models import Review, ReviewDetail
 from git_nearit.clients.gitea_client import GiteaAPIError, GiteaClient
+from git_nearit.models import Review, ReviewDetail
 from git_nearit.models.git_repository import GitRepository
 from tests.base import GitRepoTestCase
 

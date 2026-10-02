@@ -3,9 +3,9 @@ import os
 import subprocess
 import sys
 import tempfile
+from collections.abc import Callable
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Callable, Optional
 
 import questionary
 from questionary import Style
@@ -70,7 +70,7 @@ def select_from_menu(prompt: str, choices: list[str]) -> str:
     return result
 
 
-def get_text_input(prompt: str, validate: Optional[Callable] = None) -> str:
+def get_text_input(prompt: str, validate: Callable | None = None) -> str:
     logger = logging.getLogger("git-nearit")
     logger.info(prompt)
     result = questionary.text(
@@ -171,7 +171,7 @@ def format_relative_time(iso_timestamp: str) -> str:
             return f"{minutes}m ago"
         else:
             return "just now"
-    except Exception:
+    except ValueError:
         return iso_timestamp
 
 

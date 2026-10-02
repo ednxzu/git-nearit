@@ -1,6 +1,7 @@
 import unittest
 from unittest.mock import patch
 
+import click
 from click.testing import CliRunner
 
 from git_nearit.main import handle_review, lab_review, tea_review
@@ -68,8 +69,10 @@ class TestHandleReview(unittest.TestCase):
     @patch("git_nearit.main.list_reviews")
     def test_handle_review_rejects_multiple_modes(self, mock_list, mock_download):
         # This should be caught by the sum check
-        with self.assertRaises(Exception):
-            handle_review("gitea", target_branch=None, download=42, list=True, wip=False)
+        with self.assertRaises(click.UsageError):
+            handle_review(
+                "gitea", target_branch=None, download=42, list=True, wip=False, ready=False
+            )
 
 
 class TestTeaReview(unittest.TestCase):

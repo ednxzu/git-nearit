@@ -1,8 +1,10 @@
+import contextlib
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from git import Repo
+from git.exc import GitCommandError
 
 
 class GitRepoTestCase(unittest.TestCase):
@@ -22,15 +24,11 @@ class GitRepoTestCase(unittest.TestCase):
         repo.index.add(["README.md"])
         repo.index.commit("Initial commit")
 
-        try:
+        with contextlib.suppress(GitCommandError):
             repo.git.branch("-M", "main")
-        except Exception:
-            pass
 
-        try:
+        with contextlib.suppress(GitCommandError):
             repo.create_remote("origin", "https://example.com/test/repo.git")
-        except Exception:
-            pass
 
     def tearDown(self) -> None:
         self.temp_dir.cleanup()

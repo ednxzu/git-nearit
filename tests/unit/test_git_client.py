@@ -230,9 +230,11 @@ class TestGitClientFetchAndCheckout(GitRepoTestCase):
         mock_git = MagicMock()
         mock_git.fetch.side_effect = GitCommandError("git fetch", 128)
 
-        with patch.object(self.client.repo, "git", mock_git):
-            with self.assertRaises(ValueError) as context:
-                self.client.fetch_and_checkout_branch("nonexistent/branch")
+        with (
+            patch.object(self.client.repo, "git", mock_git),
+            self.assertRaises(ValueError) as context,
+        ):
+            self.client.fetch_and_checkout_branch("nonexistent/branch")
 
         self.assertIn("Failed to fetch and checkout branch", str(context.exception))
         mock_git.fetch.assert_called_once_with("origin", "nonexistent/branch")

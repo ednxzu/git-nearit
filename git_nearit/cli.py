@@ -1,5 +1,6 @@
 import sys
-from typing import Optional
+
+from git.exc import GitCommandError
 
 from git_nearit.clients.git_client import GitClient
 from git_nearit.clients.gitea_client import GiteaClient
@@ -8,7 +9,7 @@ from git_nearit.utils import display_reviews_table, get_pr_description, get_pr_t
 
 
 def run_review(
-    platform: str, target_branch: Optional[str] = None, wip: bool = False, ready: bool = False
+    platform: str, target_branch: str | None = None, wip: bool = False, ready: bool = False
 ) -> None:
     logger = setup_logging()
 
@@ -60,7 +61,7 @@ def run_review(
         try:
             git_client.push_branch(branch_name)
             logger.info("Branch pushed successfully")
-        except Exception as e:
+        except GitCommandError as e:
             logger.error(f"Push failed: {e}")
             sys.exit(1)
 
@@ -108,8 +109,8 @@ def run_review(
     except ValueError as e:
         logger.error(str(e))
         sys.exit(1)
-    except Exception as e:
-        logger.exception(f"Unexpected error: {e}")
+    except Exception:
+        logger.exception("Unexpected error")
         sys.exit(1)
 
 
@@ -150,12 +151,12 @@ def download_review(platform: str, pr_id: int) -> None:
     except ValueError as e:
         logger.error(str(e))
         sys.exit(1)
-    except Exception as e:
-        logger.exception(f"Unexpected error: {e}")
+    except Exception:
+        logger.exception("Unexpected error")
         sys.exit(1)
 
 
-def list_reviews(platform: str, base_branch: Optional[str] = None) -> None:
+def list_reviews(platform: str, base_branch: str | None = None) -> None:
     logger = setup_logging()
 
     try:
@@ -179,6 +180,6 @@ def list_reviews(platform: str, base_branch: Optional[str] = None) -> None:
     except ValueError as e:
         logger.error(str(e))
         sys.exit(1)
-    except Exception as e:
-        logger.exception(f"Unexpected error: {e}")
+    except Exception:
+        logger.exception("Unexpected error")
         sys.exit(1)

@@ -1,10 +1,9 @@
 from abc import ABC, abstractmethod
-from typing import Optional
 from urllib.parse import urlparse
 
 from git import Repo
 
-from git_nearit.models import GitRepository, Review, ReviewListItem, ReviewDetail
+from git_nearit.models import GitRepository, Review, ReviewDetail, ReviewListItem
 
 
 class BaseVCSClient(ABC):
@@ -78,7 +77,7 @@ class BaseVCSClient(ABC):
         return text
 
     @abstractmethod
-    def check_existing_review(self, source_branch: str, target_branch: str) -> Optional[Review]:
+    def check_existing_review(self, source_branch: str, target_branch: str) -> Review | None:
         pass
 
     @abstractmethod

@@ -1,11 +1,11 @@
+import configparser
 import os
 import re
-from typing import Optional
 
 from git import GitConfigParser, Repo
 
 
-def get_git_config(key: str, default: str = "", repo: Optional[Repo] = None) -> str:
+def get_git_config(key: str, default: str = "", repo: Repo | None = None) -> str:
     try:
         if repo:
             config = repo.config_reader()
@@ -24,7 +24,7 @@ def get_git_config(key: str, default: str = "", repo: Optional[Repo] = None) -> 
                 return os.getenv(env_var, default)
 
         return str(value)
-    except Exception:
+    except (OSError, TypeError, configparser.Error):
         return default
 
 

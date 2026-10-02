@@ -2,7 +2,7 @@ import os
 import unittest
 from unittest.mock import MagicMock, patch
 
-from git_nearit.config import get_git_config, _parse_config_key
+from git_nearit.config import _parse_config_key, get_git_config
 
 
 class TestParseConfigKey(unittest.TestCase):
@@ -63,7 +63,7 @@ class TestGetGitConfig(unittest.TestCase):
 
     @patch("git_nearit.config.GitConfigParser")
     def test_get_with_exception_returns_default(self, mock_parser_class) -> None:
-        mock_parser_class.side_effect = Exception("Config error")
+        mock_parser_class.side_effect = OSError("Config error")
 
         result = get_git_config("user.name", default="fallback")
 

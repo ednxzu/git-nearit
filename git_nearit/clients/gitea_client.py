@@ -1,11 +1,9 @@
-from typing import Optional
-
 import requests
 from git import Repo
 
 from git_nearit.clients.base_vcs_client import BaseVCSClient
 from git_nearit.config import get_git_config
-from git_nearit.models import Review, GitRepository, ReviewListItem, ReviewDetail
+from git_nearit.models import GitRepository, Review, ReviewDetail, ReviewListItem
 
 
 class GiteaAPIError(Exception):
@@ -13,7 +11,7 @@ class GiteaAPIError(Exception):
 
 
 class GiteaClient(BaseVCSClient):
-    def __init__(self, repo: Repo, token: Optional[str] = None, base_url: Optional[str] = None):
+    def __init__(self, repo: Repo, token: str | None = None, base_url: str | None = None):
         self.repo = repo
 
         repo_info = self._parse_remote_url(repo)
@@ -50,7 +48,7 @@ class GiteaClient(BaseVCSClient):
         }
         self.draft_prefix = "WIP: "
 
-    def _make_request(self, method: str, route: str, json_data: Optional[dict] = None, **kwargs):
+    def _make_request(self, method: str, route: str, json_data: dict | None = None, **kwargs):
         url = f"{self.api_url}{route}"
 
         try:
@@ -73,13 +71,13 @@ class GiteaClient(BaseVCSClient):
             try:
                 error_detail = e.response.json()
                 raise GiteaAPIError(f"{error_msg}: {error_detail}") from e
-            except Exception:
+            except ValueError:
                 raise GiteaAPIError(f"{error_msg}: {e.response.text}") from e
 
         except requests.exceptions.RequestException as e:
             raise GiteaAPIError(f"Request failed on {route}: {e}") from e
 
-    def check_existing_review(self, source_branch: str, target_branch: str) -> Optional[Review]:
+    def check_existing_review(self, source_branch: str, target_branch: str) -> Review | None:
         route = f"/repos/{self.owner}/{self.repo_name}/pulls"
         params = {"state": "open"}
 
