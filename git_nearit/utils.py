@@ -1,11 +1,14 @@
+import json
 import logging
 import os
+import re
 import subprocess
 import sys
 import tempfile
 from collections.abc import Callable
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 
 import questionary
 from questionary import Style
@@ -16,6 +19,11 @@ from rich.table import Table
 from git_nearit.models import ReviewListItem
 
 console = Console()
+err_console = Console(stderr=True)
+
+PR_TYPES = ["feat", "fix", "chore", "docs", "ci", "test"]
+PR_TITLE_DESC_PATTERN = re.compile(r"[a-z0-9-]{1,30}")
+PR_TITLE_PATTERN = re.compile(rf"^({'|'.join(PR_TYPES)})/{PR_TITLE_DESC_PATTERN.pattern}$")
 
 custom_style = Style(
     [
@@ -33,14 +41,18 @@ custom_style = Style(
 )
 
 
-def setup_logging() -> logging.Logger:
+def setup_logging(json_output: bool = False) -> logging.Logger:
+    """Configure the git-nearit logger.
+
+    With json_output, logs go to stderr so stdout only carries the JSON result.
+    """
     logger = logging.getLogger("git-nearit")
     logger.setLevel(logging.INFO)
 
     logger.handlers.clear()
 
     handler = RichHandler(
-        console=console,
+        console=err_console if json_output else console,
         show_time=False,
         show_path=False,
         show_level=True,
@@ -51,6 +63,12 @@ def setup_logging() -> logging.Logger:
 
     logger.addHandler(handler)
     return logger
+
+
+def emit_json(data: Any) -> None:
+    """Write exactly one JSON document to stdout."""
+    sys.stdout.write(json.dumps(data) + "\n")
+    sys.stdout.flush()
 
 
 def select_from_menu(prompt: str, choices: list[str]) -> str:
@@ -120,25 +138,47 @@ def edit_in_editor(initial_content: str, prefix: str = "git-nearit") -> str:
     return result
 
 
-def get_pr_title() -> str:
-    import re
+def validate_pr_title(title: str) -> str | None:
+    """Return an error message if title is not a valid PR/MR title, None otherwise."""
+    pr_type, sep, desc = title.partition("/")
+    if not sep or pr_type not in PR_TYPES:
+        return f"Invalid type. Title must start with one of: {', '.join(PR_TYPES)}, then '/'"
+    if not PR_TITLE_DESC_PATTERN.fullmatch(desc):
+        return "Invalid format. Use lowercase a-z, 0-9, and dashes only (max 30 chars)"
+    if not PR_TITLE_PATTERN.fullmatch(title):
+        return f"Invalid title. Expected format: {PR_TITLE_PATTERN.pattern}"
+    return None
 
-    types = ["feat", "fix", "chore", "docs", "ci", "test"]
-    pr_type = select_from_menu("Select PR/MR type:", types)
+
+def get_pr_title() -> str:
+    pr_type = select_from_menu("Select PR/MR type:", PR_TYPES)
 
     desc = get_text_input(
         "Enter short description (max 30 chars, lowercase, dash-separated): ",
-        validate=lambda text: (
-            bool(re.match(r"^[a-z0-9-]{1,30}$", text))
-            or "Invalid format. Use lowercase a-z, 0-9, and dashes only (max 30 chars)"
-        ),
+        validate=lambda text: validate_pr_title(f"{pr_type}/{text}") or True,
     )
 
     return f"{pr_type}/{desc}"
 
 
+def is_interactive(json_output: bool = False) -> bool:
+    """Prompts are only allowed on a TTY and never when stdout carries JSON."""
+    return sys.stdin.isatty() and not json_output
+
+
+def commit_description(commit_subject: str, commit_body: str) -> str:
+    return f"{commit_subject}\n\n{commit_body}".strip()
+
+
+def read_message_file(path: str) -> str:
+    """Read a description from path, '-' meaning stdin."""
+    if path == "-":
+        return sys.stdin.read()
+    return Path(path).read_text()
+
+
 def get_pr_description(commit_subject: str, commit_body: str) -> str:
-    initial_content = f"{commit_subject}\n\n{commit_body}".strip()
+    initial_content = commit_description(commit_subject, commit_body)
 
     description = edit_in_editor(initial_content)
 

@@ -489,7 +489,7 @@ class TestGitLabClientAPI(GitRepoTestCase):
         self.assertIsNone(result)
 
     @patch("git_nearit.clients.gitlab_client.requests.request")
-    def test_update_review_status_set_draft(self, mock_request):
+    def test_update_review_set_draft(self, mock_request):
         # Mock PUT (update)
         put_response = MagicMock()
         put_response.status_code = 200
@@ -508,7 +508,7 @@ class TestGitLabClientAPI(GitRepoTestCase):
             url="https://example.com/test/repo/-/merge_requests/42",
             number=42,
         )
-        result = client.update_review_status(existing_review, draft=True)
+        result = client.update_review(existing_review, draft=True)
 
         self.assertEqual(result.title, "[Draft] feat/test-feature")
         self.assertEqual(result.number, 42)
@@ -520,7 +520,7 @@ class TestGitLabClientAPI(GitRepoTestCase):
         self.assertEqual(put_call.kwargs["json"]["title"], "[Draft] feat/test-feature")
 
     @patch("git_nearit.clients.gitlab_client.requests.request")
-    def test_update_review_status_unset_draft(self, mock_request):
+    def test_update_review_unset_draft(self, mock_request):
         # Mock PUT (update)
         put_response = MagicMock()
         put_response.status_code = 200
@@ -539,7 +539,7 @@ class TestGitLabClientAPI(GitRepoTestCase):
             url="https://example.com/test/repo/-/merge_requests/42",
             number=42,
         )
-        result = client.update_review_status(existing_review, draft=False)
+        result = client.update_review(existing_review, draft=False)
 
         self.assertEqual(result.title, "feat/test-feature")
         # Verify [Draft] prefix was removed
@@ -547,14 +547,14 @@ class TestGitLabClientAPI(GitRepoTestCase):
         self.assertEqual(put_call.kwargs["json"]["title"], "feat/test-feature")
 
     @patch("git_nearit.clients.gitlab_client.requests.request")
-    def test_update_review_status_no_changes(self, mock_request):
+    def test_update_review_no_changes(self, mock_request):
         client = GitLabClient(Repo(self.repo_path), token="test-token")
         existing_review = Review(
             title="[Draft] feat/test-feature",
             url="https://example.com/test/repo/-/merge_requests/42",
             number=42,
         )
-        result = client.update_review_status(existing_review, draft=True)  # Already draft
+        result = client.update_review(existing_review, draft=True)  # Already draft
 
         # Should not make any API calls
         self.assertEqual(mock_request.call_count, 0)
@@ -562,7 +562,7 @@ class TestGitLabClientAPI(GitRepoTestCase):
         self.assertEqual(result, existing_review)  # Should return same object
 
     @patch("git_nearit.clients.gitlab_client.requests.request")
-    def test_update_review_status_error_handling(self, mock_request):
+    def test_update_review_error_handling(self, mock_request):
         from requests.exceptions import HTTPError
 
         mock_response = MagicMock()
@@ -582,6 +582,96 @@ class TestGitLabClientAPI(GitRepoTestCase):
         )
 
         with self.assertRaises(GitlabAPIError) as context:
-            client.update_review_status(existing_review, draft=True)
+            client.update_review(existing_review, draft=True)
 
         self.assertIn("HTTP 404", str(context.exception))
+
+    def _update_response(self, mock_request, title):
+        response = MagicMock()
+        response.status_code = 200
+        response.content = True
+        response.json.return_value = {
+            "title": title,
+            "web_url": "https://example.com/test/repo/-/merge_requests/42",
+            "iid": 42,
+        }
+        mock_request.return_value = response
+
+    def _existing_review(self, title):
+        return Review(
+            title=title, url="https://example.com/test/repo/-/merge_requests/42", number=42
+        )
+
+    @patch("git_nearit.clients.gitlab_client.requests.request")
+    def test_update_review_title_only_keeps_draft_state(self, mock_request):
+        self._update_response(mock_request, "[Draft] feat/new-name")
+        client = GitLabClient(Repo(self.repo_path), token="test-token")
+
+        result = client.update_review(
+            self._existing_review("[Draft] feat/old-name"), title="feat/new-name"
+        )
+
+        self.assertEqual(result.title, "[Draft] feat/new-name")
+        self.assertEqual(mock_request.call_count, 1)
+        self.assertEqual(mock_request.call_args.kwargs["method"], "PUT")
+        self.assertEqual(mock_request.call_args.kwargs["json"], {"title": "[Draft] feat/new-name"})
+
+    @patch("git_nearit.clients.gitlab_client.requests.request")
+    def test_update_review_title_with_ready(self, mock_request):
+        self._update_response(mock_request, "feat/new-name")
+        client = GitLabClient(Repo(self.repo_path), token="test-token")
+
+        client.update_review(
+            self._existing_review("[Draft] feat/old-name"), title="feat/new-name", draft=False
+        )
+
+        self.assertEqual(mock_request.call_args.kwargs["json"], {"title": "feat/new-name"})
+
+    @patch("git_nearit.clients.gitlab_client.requests.request")
+    def test_update_review_description_only(self, mock_request):
+        self._update_response(mock_request, "feat/test-feature")
+        client = GitLabClient(Repo(self.repo_path), token="test-token")
+
+        client.update_review(self._existing_review("feat/test-feature"), description="New body")
+
+        self.assertEqual(mock_request.call_count, 1)
+        self.assertEqual(mock_request.call_args.kwargs["method"], "PUT")
+        self.assertEqual(mock_request.call_args.kwargs["json"], {"description": "New body"})
+
+    @patch("git_nearit.clients.gitlab_client.requests.request")
+    def test_update_review_title_description_and_draft_single_request(self, mock_request):
+        self._update_response(mock_request, "[Draft] fix/other")
+        client = GitLabClient(Repo(self.repo_path), token="test-token")
+
+        client.update_review(
+            self._existing_review("feat/test-feature"),
+            title="fix/other",
+            description="New body",
+            draft=True,
+        )
+
+        self.assertEqual(mock_request.call_count, 1)
+        self.assertEqual(
+            mock_request.call_args.kwargs["json"],
+            {"title": "[Draft] fix/other", "description": "New body"},
+        )
+
+    @patch("git_nearit.clients.gitlab_client.requests.request")
+    def test_update_review_no_op_makes_no_request(self, mock_request):
+        client = GitLabClient(Repo(self.repo_path), token="test-token")
+        existing_review = self._existing_review("[Draft] feat/test-feature")
+
+        for kwargs in ({}, {"title": "feat/test-feature"}, {"draft": True}):
+            with self.subTest(kwargs=kwargs):
+                result = client.update_review(existing_review, **kwargs)
+                self.assertIs(result, existing_review)
+
+        self.assertEqual(mock_request.call_count, 0)
+
+    def test_draft_title_helpers(self):
+        client = GitLabClient(Repo(self.repo_path), token="test-token")
+
+        self.assertTrue(client.is_draft_title("[Draft] feat/x"))
+        self.assertFalse(client.is_draft_title("feat/x"))
+        self.assertEqual(client.strip_draft_prefix("[Draft] feat/x"), "feat/x")
+        self.assertEqual(client.strip_draft_prefix("feat/x"), "feat/x")

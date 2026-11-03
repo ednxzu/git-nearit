@@ -1,92 +1,55 @@
 # git-nearit
 
-A streamlined Git review workflow tool for **Gitea** and **GitLab**, inspired by Gerrit's `git-review`.
+A small `git-review`-style tool for **Gitea** and **GitLab**. You commit, run one command, and it
+pushes your work to a change branch and opens the pull or merge request for you.
 
-## What is it?
-
-`git-nearit` simplifies the pull request workflow by automating branch creation, pushing, and PR management. Instead of manually creating branches, pushing with the right flags, and navigating to your Git hosting UI, you can submit reviews with a single command.
-
-**Key features:**
-
-- One-command review submission
-- Download and checkout pull requests locally
-- List active reviews for a repository
-
-## Why use it?
-
-**Traditional workflow:**
 ```bash
-git checkout -b feature/my-change
-# ... make changes ...
-git add .
-git commit -m "fix: improve performance"
-git push -u origin feature/my-change
-# Navigate to Gitea/GitLab UI
-# Click "New Pull Request"
-# Fill in title and description
+git commit -m "fix: improve performance"   # on main, or on the branch you want to target
+git lab-review                             # or git tea-review for Gitea
 ```
 
-**With git-nearit:**
-```bash
-git add .
-# yes, on the main branch! Or the branch you want to submit to
-git commit -m "fix: improve performance"
-git tea-review
-# That's it! Branch created, pushed, and PR opened
-```
+That replaces creating a branch, pushing it with the right flags and filling in the form in the web
+UI.
 
 ## Installation
 
-### Prerequisites
-- Python 3.11 or higher
-- Git
-- [uv](https://github.com/astral-sh/uv) (recommended) or pip
+You need Python 3.11+ and git. Install it with [uv](https://github.com/astral-sh/uv):
 
 ```bash
-git clone https://github.com/yourusername/git-nearit.git
-cd git-nearit
-uv sync  # or: pip install -e .
+uv tool install git+https://github.com/ednxzu/git-nearit
+```
+
+This puts `git-tea-review` and `git-lab-review` on your `PATH`, so git picks them up as
+`git tea-review` and `git lab-review`. To upgrade later:
+
+```bash
+uv tool upgrade git-nearit
 ```
 
 ## Configuration
 
-### Gitea
+Tokens are read from git config, keyed by the hostname of your `origin` remote.
 
-Configure your Gitea access token:
+Gitea needs a token with `repo` permissions (Settings → Applications):
 
 ```bash
-# Store token directly
 git config nearit.gitea.git.example.com.token YOUR_TOKEN
-
-# Or use environment variable (more secure)
-git config nearit.gitea.git.example.com.token env(GITEA_TOKEN)
-export GITEA_TOKEN="your-token-here"
 ```
 
-**Obtaining a token:**
-1. Go to your Gitea instance → Settings → Applications
-2. Generate a new token with `repo` permissions
-3. Copy and configure as shown above
-
-### GitLab
+GitLab needs a token with the `api` scope (Preferences → Access Tokens):
 
 ```bash
-# Store token directly
 git config nearit.gitlab.gitlab.com.token YOUR_TOKEN
+```
 
-# Or use environment variable
-git config nearit.gitlab.gitlab.com.token env(GITLAB_TOKEN)
+To keep the token out of your git config, point it at an environment variable instead:
+
+```bash
+git config nearit.gitlab.gitlab.com.token 'env(GITLAB_TOKEN)'
 export GITLAB_TOKEN="your-token-here"
 ```
 
-**Obtaining a token:**
-1. Go to GitLab → Preferences → Access Tokens
-2. Create a token with `api` scope
-3. Copy and configure as shown above
-
-### Custom base URLs
-
-If your Gitea/GitLab instance uses a custom URL:
+If the API isn't served from `https://<hostname>`, set the base URL:
 
 ```bash
 git config nearit.gitea.git.example.com.url https://git.example.com:8443
@@ -94,77 +57,98 @@ git config nearit.gitea.git.example.com.url https://git.example.com:8443
 
 ## Usage
 
+The commands are the same for both platforms: `git tea-review` for Gitea and `git lab-review` for
+GitLab.
+
 ### Submit a review
 
-**For Gitea:**
 ```bash
-# From any branch (creates timestamped change branch if needed)
-git tea-review
-
-# Target a specific branch
-git tea-review develop
+git lab-review            # target the default branch
+git lab-review develop    # target another branch
+git lab-review -w         # open it as a draft; -r marks it ready again
 ```
 
-**For GitLab:**
-```bash
-git lab-review
-
-# Target a specific branch
-git lab-review develop
-```
-
-Creates timestamped `change/YYYYMMDDHHmmss` branches when submitting from main, prompts for title/description, and opens the PR automatically.
+If you run it from the target branch, it moves your commits to a new `change/YYYYMMDDHHmmss`
+branch and resets the target branch to its `origin` state. It then pushes, asks for a title and
+opens your editor for the description. If a review already exists for the branch, it just pushes
+the new commits.
 
 ### Download a review
 
 ```bash
-git tea-review -d 42    # Gitea
-git lab-review -d 42    # GitLab
+git lab-review -d 42
 ```
 
-### List active reviews
+This fetches the review's branch and checks it out.
+
+### List open reviews
 
 ```bash
-git tea-review -l       # List reviews for main branch
-git tea-review -l develop  # List for specific branch
+git lab-review -l            # for the default branch
+git lab-review -l develop    # for another branch
 ```
+
+### Non-interactive / agent usage
+
+Scripts and AI agents can pass everything on the command line:
+
+| Option | Meaning |
+|---|---|
+| `-t, --title TEXT` | Full title, `type/short-desc` with type one of `feat`, `fix`, `chore`, `docs`, `ci`, `test` and a description of at most 30 chars of `a-z`, `0-9` and `-` (e.g. `feat/add-cli-desc`). No draft prefix: use `--wip`/`--ready`. |
+| `-m, --message TEXT` | Description given inline. |
+| `-F, --message-file PATH` | Description read from a file, `-` for stdin. |
+| `--no-edit` | Description is the last commit subject and body, no editor. |
+| `--json` | Machine-readable result on stdout, logs on stderr (submit and list mode). |
+
+`-m`, `-F` and `--no-edit` can't be combined. It never prompts when stdin isn't a terminal or
+`--json` is set. In that case, creating a review without a title or description fails before
+anything is pushed, and the error names the missing option.
+
+```bash
+git lab-review --json -t feat/add-cli-desc -F - <<'EOF'
+## Summary
+...
+EOF
+```
+
+```json
+{"action": "created", "number": 42, "url": "https://gitlab.example.com/group/repo/-/merge_requests/42", "title": "feat/add-cli-desc", "draft": false, "source_branch": "change/20261103120000", "target_branch": "main"}
+```
+
+An existing review only changes when you ask: `-t` replaces the title and keeps the draft state
+unless `--wip` or `--ready` is given. `-m`, `-F` and `--no-edit` replace the description. For
+example, after amending a commit:
+
+```bash
+git commit --amend
+git lab-review -t fix/new-name --no-edit
+```
+
+`action` is `created`, `updated` or `unchanged`. With `--json`, `-l` prints a JSON array instead
+of the table.
 
 ## Development
 
 ```bash
-git clone https://github.com/yourusername/git-nearit.git
+git clone https://github.com/ednxzu/git-nearit
 cd git-nearit
-uv sync --all-extras
-uv run pytest -xvs
+uv sync --group test
+uv run pytest
+uv run ruff check .
 ```
 
-## Troubleshooting
+Development is not done on GitHub, which is simply a mirror of the code hosted on [my own GitLab](https://gitlab.ednz.fr/ednz-cloud/git-nearit). Pull requests on GitHub will not be merged.
+Please contact me for development-related questions on this project.
 
-- **"No token found"**: Configure token for your hostname: `git config nearit.gitea.YOUR_HOSTNAME.token YOUR_TOKEN`
-- **"Uncommitted changes"**: Commit or stash tracked file changes (untracked files are fine)
-- **"Not a git repository"**: Run from inside a git repository
+## Contributing
 
-## Roadmap
-
-- [x] Gitea support
-- [x] Download PR for review/edit (`-d` flag)
-- [x] Complete GitLab client implementation
-- [ ] GitHub support
-- [ ] Interactive rebase workflow
-- [ ] Draft PR support
+Write commits as [conventional commits](https://www.conventionalcommits.org/), since releases and
+the changelog are generated with commitizen. Add tests for what you change, and submit it with the
+tool itself: `git lab-review` or `git tea-review` :)
 
 ## License
 
 MIT
-
-## Contributing
-
-Contributions welcome! Please:
-1. Fork the repository
-2. Create a feature branch
-3. Add tests for new functionality
-4. Ensure all tests pass
-5. Submit a pull request
 
 ## Acknowledgments
 

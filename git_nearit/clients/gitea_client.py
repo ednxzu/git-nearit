@@ -130,24 +130,27 @@ class GiteaClient(BaseVCSClient):
         except Exception as e:
             raise GiteaAPIError(f"Failed to create review: {e}") from e
 
-    def update_review_status(self, review: Review, draft: bool) -> Review:
+    def update_review(
+        self,
+        review: Review,
+        title: str | None = None,
+        description: str | None = None,
+        draft: bool | None = None,
+    ) -> Review:
         route = f"/repos/{self.owner}/{self.repo_name}/pulls/{review.number}"
 
         try:
-            current_title = review.title
-            current_draft = current_title.startswith("WIP: ")
+            update_data: dict[str, str] = {}
 
-            if draft == current_draft:
+            new_title = self._build_update_title(review=review, title=title, draft=draft)
+            if new_title != review.title:
+                update_data["title"] = new_title
+            if description is not None:
+                update_data["body"] = description
+
+            if not update_data:
                 return review
 
-            new_title = current_title
-
-            if draft:
-                new_title = self._add_prefix(text=new_title, prefix=self.draft_prefix)
-            else:
-                new_title = self._remove_prefix(text=new_title, prefix=self.draft_prefix)
-
-            update_data = {"title": new_title}
             result = self._make_request("PATCH", route, json_data=update_data)
             return Review(
                 title=result["title"],

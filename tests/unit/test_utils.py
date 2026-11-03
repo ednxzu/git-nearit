@@ -1,17 +1,27 @@
+import io
 import unittest
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
+from tempfile import TemporaryDirectory
 from unittest.mock import MagicMock, patch
 
 from git_nearit.models import ReviewListItem
 from git_nearit.utils import (
+    PR_TITLE_PATTERN,
+    PR_TYPES,
+    commit_description,
     display_reviews_table,
     edit_in_editor,
+    emit_json,
     format_relative_time,
     get_pr_description,
     get_pr_title,
     get_text_input,
+    is_interactive,
+    read_message_file,
     select_from_menu,
     setup_logging,
+    validate_pr_title,
 )
 
 
@@ -171,6 +181,14 @@ class TestSetupLogging(unittest.TestCase):
         self.assertEqual(logger.level, 20)
         self.assertEqual(len(logger.handlers), 1)
 
+    def test_setup_logging_json_logs_to_stderr(self) -> None:
+        logger = setup_logging(json_output=True)
+        self.assertTrue(logger.handlers[0].console.stderr)
+
+    def test_setup_logging_default_logs_to_stdout(self) -> None:
+        logger = setup_logging()
+        self.assertFalse(logger.handlers[0].console.stderr)
+
 
 class TestSelectFromMenu(unittest.TestCase):
     @patch("git_nearit.utils.questionary.select")
@@ -268,6 +286,74 @@ class TestGetPrTitle(unittest.TestCase):
         result = get_pr_title()
 
         self.assertEqual(result, "feat/new-feature")
+
+    @patch("git_nearit.utils.get_text_input")
+    @patch("git_nearit.utils.select_from_menu")
+    def test_get_pr_title_prompt_uses_shared_validation(self, mock_select, mock_input) -> None:
+        mock_select.return_value = "fix"
+        mock_input.return_value = "x"
+
+        get_pr_title()
+
+        mock_select.assert_called_once_with("Select PR/MR type:", PR_TYPES)
+        validate = mock_input.call_args.kwargs["validate"]
+        self.assertIs(validate("good-desc"), True)
+        self.assertIsInstance(validate("Bad_Desc"), str)
+        self.assertIsInstance(validate("a" * 31), str)
+
+
+class TestValidatePrTitle(unittest.TestCase):
+    def test_valid_titles(self) -> None:
+        for title in ("feat/add-cli-desc", "fix/a", "ci/x1-2", "test/" + "a" * 30):
+            with self.subTest(title=title):
+                self.assertIsNone(validate_pr_title(title))
+                self.assertTrue(PR_TITLE_PATTERN.fullmatch(title))
+
+    def test_invalid_titles(self) -> None:
+        for title in (
+            "feature/add-cli-desc",  # bad type
+            "feat/Add-Cli",  # uppercase
+            "feat/" + "a" * 31,  # too long
+            "[Draft] feat/x",  # draft prefix included
+            "WIP: feat/x",  # draft prefix included
+            "feat/",  # empty description
+            "feat/a_b",  # underscore
+            "feat",  # no separator
+            "",
+        ):
+            with self.subTest(title=title):
+                self.assertIsInstance(validate_pr_title(title), str)
+                self.assertIsNone(PR_TITLE_PATTERN.fullmatch(title))
+
+
+class TestNonInteractiveHelpers(unittest.TestCase):
+    @patch("git_nearit.utils.sys.stdin")
+    def test_is_interactive(self, mock_stdin) -> None:
+        mock_stdin.isatty.return_value = True
+        self.assertTrue(is_interactive())
+        self.assertFalse(is_interactive(json_output=True))
+        mock_stdin.isatty.return_value = False
+        self.assertFalse(is_interactive())
+
+    def test_commit_description(self) -> None:
+        self.assertEqual(commit_description("subject", "body"), "subject\n\nbody")
+        self.assertEqual(commit_description("subject", ""), "subject")
+        self.assertEqual(commit_description("", ""), "")
+
+    @patch("git_nearit.utils.sys.stdin", new_callable=lambda: io.StringIO("from stdin"))
+    def test_read_message_file_stdin(self, _) -> None:
+        self.assertEqual(read_message_file("-"), "from stdin")
+
+    def test_read_message_file_path(self) -> None:
+        with TemporaryDirectory() as tmp:
+            path = Path(tmp) / "desc.md"
+            path.write_text("from file")
+            self.assertEqual(read_message_file(str(path)), "from file")
+
+    @patch("git_nearit.utils.sys.stdout", new_callable=io.StringIO)
+    def test_emit_json(self, mock_stdout) -> None:
+        emit_json({"a": 1})
+        self.assertEqual(mock_stdout.getvalue(), '{"a": 1}\n')
 
 
 class TestGetPrDescription(unittest.TestCase):

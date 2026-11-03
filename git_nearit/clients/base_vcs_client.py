@@ -7,6 +7,8 @@ from git_nearit.models import GitRepository, Review, ReviewDetail, ReviewListIte
 
 
 class BaseVCSClient(ABC):
+    draft_prefix: str
+
     def _parse_remote_url(self, repo: Repo) -> dict[str, str]:
         try:
             remote_url = repo.remote("origin").url
@@ -76,6 +78,23 @@ class BaseVCSClient(ABC):
             return f"{prefix}{text}"
         return text
 
+    def is_draft_title(self, title: str) -> bool:
+        return title.startswith(self.draft_prefix)
+
+    def strip_draft_prefix(self, title: str) -> str:
+        return self._remove_prefix(text=title, prefix=self.draft_prefix)
+
+    def _build_update_title(self, review: Review, title: str | None, draft: bool | None) -> str:
+        """Compute the title an update should leave on the review.
+
+        draft=None keeps the current draft state, derived from the existing title's prefix.
+        """
+        target_draft = self.is_draft_title(review.title) if draft is None else draft
+        base_title = title if title is not None else self.strip_draft_prefix(review.title)
+        if target_draft:
+            return self._add_prefix(text=base_title, prefix=self.draft_prefix)
+        return self._remove_prefix(text=base_title, prefix=self.draft_prefix)
+
     @abstractmethod
     def check_existing_review(self, source_branch: str, target_branch: str) -> Review | None:
         pass
@@ -92,7 +111,13 @@ class BaseVCSClient(ABC):
         pass
 
     @abstractmethod
-    def update_review_status(self, review: Review, draft: bool) -> Review:
+    def update_review(
+        self,
+        review: Review,
+        title: str | None = None,
+        description: str | None = None,
+        draft: bool | None = None,
+    ) -> Review:
         pass
 
     @abstractmethod

@@ -478,7 +478,7 @@ class TestGiteaClientAPI(GitRepoTestCase):
         self.assertIsNone(result)
 
     @patch("git_nearit.clients.gitea_client.requests.request")
-    def test_update_review_status_set_draft(self, mock_request):
+    def test_update_review_set_draft(self, mock_request):
         # Mock PATCH (update)
         patch_response = MagicMock()
         patch_response.status_code = 200
@@ -497,7 +497,7 @@ class TestGiteaClientAPI(GitRepoTestCase):
             url="https://example.com/test/repo/pulls/42",
             number=42,
         )
-        result = client.update_review_status(existing_review, draft=True)
+        result = client.update_review(existing_review, draft=True)
 
         self.assertEqual(result.title, "WIP: feat/test-feature")
         self.assertEqual(result.number, 42)
@@ -509,7 +509,7 @@ class TestGiteaClientAPI(GitRepoTestCase):
         self.assertEqual(patch_call.kwargs["json"]["title"], "WIP: feat/test-feature")
 
     @patch("git_nearit.clients.gitea_client.requests.request")
-    def test_update_review_status_unset_draft(self, mock_request):
+    def test_update_review_unset_draft(self, mock_request):
         # Mock PATCH (update)
         patch_response = MagicMock()
         patch_response.status_code = 200
@@ -528,7 +528,7 @@ class TestGiteaClientAPI(GitRepoTestCase):
             url="https://example.com/test/repo/pulls/42",
             number=42,
         )
-        result = client.update_review_status(existing_review, draft=False)
+        result = client.update_review(existing_review, draft=False)
 
         self.assertEqual(result.title, "feat/test-feature")
         # Verify WIP prefix was removed
@@ -536,14 +536,14 @@ class TestGiteaClientAPI(GitRepoTestCase):
         self.assertEqual(patch_call.kwargs["json"]["title"], "feat/test-feature")
 
     @patch("git_nearit.clients.gitea_client.requests.request")
-    def test_update_review_status_no_changes(self, mock_request):
+    def test_update_review_no_changes(self, mock_request):
         client = GiteaClient(Repo(self.repo_path), token="test-token")
         existing_review = Review(
             title="WIP: feat/test-feature",
             url="https://example.com/test/repo/pulls/42",
             number=42,
         )
-        result = client.update_review_status(existing_review, draft=True)  # Already draft
+        result = client.update_review(existing_review, draft=True)  # Already draft
 
         # Should not make any API calls
         self.assertEqual(mock_request.call_count, 0)
@@ -551,7 +551,7 @@ class TestGiteaClientAPI(GitRepoTestCase):
         self.assertEqual(result, existing_review)  # Should return same object
 
     @patch("git_nearit.clients.gitea_client.requests.request")
-    def test_update_review_status_error_handling(self, mock_request):
+    def test_update_review_error_handling(self, mock_request):
         from requests.exceptions import HTTPError
 
         mock_response = MagicMock()
@@ -571,6 +571,94 @@ class TestGiteaClientAPI(GitRepoTestCase):
         )
 
         with self.assertRaises(GiteaAPIError) as context:
-            client.update_review_status(existing_review, draft=True)
+            client.update_review(existing_review, draft=True)
 
         self.assertIn("HTTP 404", str(context.exception))
+
+    def _update_response(self, mock_request, title):
+        response = MagicMock()
+        response.status_code = 200
+        response.content = True
+        response.json.return_value = {
+            "title": title,
+            "html_url": "https://example.com/test/repo/pulls/42",
+            "number": 42,
+        }
+        mock_request.return_value = response
+
+    def _existing_review(self, title):
+        return Review(title=title, url="https://example.com/test/repo/pulls/42", number=42)
+
+    @patch("git_nearit.clients.gitea_client.requests.request")
+    def test_update_review_title_only_keeps_draft_state(self, mock_request):
+        self._update_response(mock_request, "WIP: feat/new-name")
+        client = GiteaClient(Repo(self.repo_path), token="test-token")
+
+        result = client.update_review(
+            self._existing_review("WIP: feat/old-name"), title="feat/new-name"
+        )
+
+        self.assertEqual(result.title, "WIP: feat/new-name")
+        self.assertEqual(mock_request.call_count, 1)
+        self.assertEqual(mock_request.call_args.kwargs["method"], "PATCH")
+        self.assertEqual(mock_request.call_args.kwargs["json"], {"title": "WIP: feat/new-name"})
+
+    @patch("git_nearit.clients.gitea_client.requests.request")
+    def test_update_review_title_with_ready(self, mock_request):
+        self._update_response(mock_request, "feat/new-name")
+        client = GiteaClient(Repo(self.repo_path), token="test-token")
+
+        client.update_review(
+            self._existing_review("WIP: feat/old-name"), title="feat/new-name", draft=False
+        )
+
+        self.assertEqual(mock_request.call_args.kwargs["json"], {"title": "feat/new-name"})
+
+    @patch("git_nearit.clients.gitea_client.requests.request")
+    def test_update_review_description_only(self, mock_request):
+        self._update_response(mock_request, "feat/test-feature")
+        client = GiteaClient(Repo(self.repo_path), token="test-token")
+
+        client.update_review(self._existing_review("feat/test-feature"), description="New body")
+
+        self.assertEqual(mock_request.call_count, 1)
+        self.assertEqual(mock_request.call_args.kwargs["method"], "PATCH")
+        self.assertEqual(mock_request.call_args.kwargs["json"], {"body": "New body"})
+
+    @patch("git_nearit.clients.gitea_client.requests.request")
+    def test_update_review_title_description_and_draft_single_request(self, mock_request):
+        self._update_response(mock_request, "WIP: fix/other")
+        client = GiteaClient(Repo(self.repo_path), token="test-token")
+
+        client.update_review(
+            self._existing_review("feat/test-feature"),
+            title="fix/other",
+            description="New body",
+            draft=True,
+        )
+
+        self.assertEqual(mock_request.call_count, 1)
+        self.assertEqual(
+            mock_request.call_args.kwargs["json"],
+            {"title": "WIP: fix/other", "body": "New body"},
+        )
+
+    @patch("git_nearit.clients.gitea_client.requests.request")
+    def test_update_review_no_op_makes_no_request(self, mock_request):
+        client = GiteaClient(Repo(self.repo_path), token="test-token")
+        existing_review = self._existing_review("WIP: feat/test-feature")
+
+        for kwargs in ({}, {"title": "feat/test-feature"}, {"draft": True}):
+            with self.subTest(kwargs=kwargs):
+                result = client.update_review(existing_review, **kwargs)
+                self.assertIs(result, existing_review)
+
+        self.assertEqual(mock_request.call_count, 0)
+
+    def test_draft_title_helpers(self):
+        client = GiteaClient(Repo(self.repo_path), token="test-token")
+
+        self.assertTrue(client.is_draft_title("WIP: feat/x"))
+        self.assertFalse(client.is_draft_title("feat/x"))
+        self.assertEqual(client.strip_draft_prefix("WIP: feat/x"), "feat/x")
+        self.assertEqual(client.strip_draft_prefix("feat/x"), "feat/x")
