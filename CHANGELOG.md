@@ -1,3 +1,9 @@
+## v0.7.0 (2026-11-05)
+
+### Feat
+
+- allow passing review title and description from the cli
+
 ## v0.6.1 (2026-02-04)
 
 ### Fix
